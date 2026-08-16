@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090b12">
+  <meta name="description"
+    content="DESKEY - a desktop buddy that understands your PC context and reacts through expressive OLED eyes.">
+  <title>DESKEY - Your Desktop Buddy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="noise"></div>
+
+  <header class="site-header" id="top">
+    <a class="brand" href="#home" aria-label="DESKEY home">
+      <span>DESKEY</span>
+    </a>
+
+    <nav class="nav" id="mainNav" aria-label="Main navigation">
+      <a href="#about">About</a>
+      <a href="#activities">Activities</a>
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <a class="header-cta" href="#how">Explore DESKEY <span>↗</span></a>
+    <button class="menu-btn" type="button" aria-label="Open menu" aria-controls="mainNav" aria-expanded="false">☰</button>
+  </header>
+
+  <main>
+    <section class="hero section" id="home">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="pulse"></span> DESKTOP BUDDY · PC-AWARE</div>
+        <h1>Your desktop.<br><em>With a personality.</em></h1>
+        <p class="hero-lead">
+          DESKEY is a physical buddy for your desk. It reads your PC context,
+          reacts with expressive OLED eyes, sleeps when you're away, wakes with you,
+          and can keep itself entertained when the PC agent disappears.
+        </p>
+
+        <div class="hero-actions">
+          <a class="btn primary" href="#features">Discover features <span>→</span></a>
+          <a class="btn ghost" href="#how">See how it works</a>
+        </div>
+
+        <div class="hero-meta">
+          <div><strong>ESP32</strong><span>Brain & controller</span></div>
+          <div><strong>OLED</strong><span>Expressive face</span></div>
+          <div><strong>Python</strong><span>PC awareness</span></div>
+        </div>
+      </div>
+
+      <div class="hero-device">
+        <div class="device-glow"></div>
+        <div class="device">
+          <div class="device-top"></div>
+          <div class="screen">
+            <div class="screen-status"><span class="status-dot"></span> ONLINE</div>
+            <div class="eyes" id="heroEyes">
+              <div class="eye">
+                <div class="pupil"></div>
+              </div>
+              <div class="eye">
+                <div class="pupil"></div>
+              </div>
+            </div>
+            <div class="face-label" id="faceLabel">CODING</div>
+          </div>
+          <div class="device-bottom"><span>DESKEY</span><span>ESP32</span></div>
+        </div>
+        <div class="device-caption">A tiny companion that notices what you're doing.</div>
+      </div>
+    </section>
+
+    <section class="ticker">
+      <div>CODING</div><span>•</span>
+      <div>BROWSING</div><span>•</span>
+      <div>MUSIC</div><span>•</span>
+      <div>GAMING</div><span>•</span>
+      <div>WATCHING</div><span>•</span>
+      <div>SLEEP</div><span>•</span>
+      <div>AUTONOMOUS</div><span>•</span>
+      <div>WAKE</div>
+    </section>
+
+    <section class="section intro" id="about">
+      <div class="section-kicker">01 / ABOUT</div>
+      <div class="two-col">
+        <div>
+          <h2>A companion that lives <em>on your desk.</em></h2>
+        </div>
+        <div class="intro-copy">
+          <p>
+            DESKEY combines an ESP32, SSD1306 OLED and RoboEyes-style expressions
+            with a Windows Python awareness agent. Instead of being another app
+            hidden behind a window, it turns your desktop activity into a small,
+            visible physical interaction.
+          </p>
+          <p>
+            Python determines the current PC context. The ESP32 turns that context
+            into an animation, manages inactivity and sleep, tracks the Python
+            heartbeat, and can fall back to autonomous behavior.
+          </p>
+        </div>
+      </div>
+
+      <div class="principle-grid">
+        <article><span>01</span>
+          <h3>Context</h3>
+          <p>Understand what is happening on the PC instead of reacting to one signal alone.</p>
+        </article>
+        <article><span>02</span>
+          <h3>Expression</h3>
+          <p>Translate context into a visual personality through animated OLED eyes.</p>
+        </article>
+        <article><span>03</span>
+          <h3>Independence</h3>
+          <p>Keep the physical buddy useful even when the PC agent is unavailable.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section activities" id="activities">
+      <div class="section-kicker">02 / ACTIVITIES</div>
+      <div class="section-heading">
+        <h2>It knows the <em>context.</em></h2>
+        <p>Foreground applications take priority over background audio, so the buddy reflects what you're actually
+          doing.</p>
+      </div>
+
+      <div class="activity-grid">
+        <article class="activity-card coding">
+          <div class="activity-icon">⌘</div>
+          <h3>Coding</h3>
+          <p>VS Code, Cursor, JetBrains tools and other development environments.</p>
+          <div class="activity-state">STATE_CODING</div>
+        </article>
+        <article class="activity-card browsing">
+          <div class="activity-icon">◉</div>
+          <h3>Browsing</h3>
+          <p>General browser activity across Chrome, Edge, Firefox, Brave and more.</p>
+          <div class="activity-state">STATE_BROWSING</div>
+        </article>
+        <article class="activity-card watching">
+          <div class="activity-icon">▶</div>
+          <h3>Watching</h3>
+          <p>YouTube, Netflix, Prime Video, Twitch and detected video players.</p>
+          <div class="activity-state">STATE_WATCHING</div>
+        </article>
+        <article class="activity-card music">
+          <div class="activity-icon">♫</div>
+          <h3>Music</h3>
+          <p>Audio becomes the fallback context when there is no stronger foreground activity.</p>
+          <div class="activity-state">STATE_MUSIC</div>
+        </article>
+        <article class="activity-card gaming">
+          <div class="activity-icon">⌁</div>
+          <h3>Gaming</h3>
+          <p>Game launchers and recognized games can drive a dedicated gaming expression.</p>
+          <div class="activity-state">STATE_GAMING</div>
+        </article>
+        <article class="activity-card typing">
+          <div class="activity-icon">▦</div>
+          <h3>Typing</h3>
+          <p>Keyboard intensity can refine the context when you're actively interacting.</p>
+          <div class="activity-state">STATE_TYPING</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section features" id="features">
+      <div class="section-kicker">03 / FUNCTIONALITIES</div>
+      <div class="feature-layout">
+        <div class="feature-main">
+          <h2>More than <em>animations.</em></h2>
+          <p>DESKEY is a small distributed system: the PC agent senses, the ESP32 decides, and the OLED expresses.</p>
+
+          <div class="feature-list">
+            <button class="feature-item active" data-feature="context">
+              <span class="num">01</span><span><strong>PC Context Engine</strong><small>Foreground app, keyboard
+                  activity, audio and idle time.</small></span><b>+</b>
+            </button>
+            <button class="feature-item" data-feature="sleep">
+              <span class="num">02</span><span><strong>Smart Sleep</strong><small>30s sleepy → 2m sleeping → 5m
+                  deep-sleep animation.</small></span><b>+</b>
+            </button>
+            <button class="feature-item" data-feature="wake">
+              <span class="num">03</span><span><strong>Context-Aware Wake</strong><small>Wake animation, Happy, then the
+                  current PC action.</small></span><b>+</b>
+            </button>
+            <button class="feature-item" data-feature="heartbeat">
+              <span class="num">04</span><span><strong>Python Heartbeat</strong><small>ESP32 detects when the PC agent
+                  stops communicating.</small></span><b>+</b>
+            </button>
+            <button class="feature-item" data-feature="auto">
+              <span class="num">05</span><span><strong>Autonomous Mode</strong><small>12–30 second randomized
+                  personality events when Python is disconnected.</small></span><b>+</b>
+            </button>
+            <button class="feature-item" data-feature="wifi">
+              <span class="num">06</span><span><strong>Wi-Fi Provisioning + Discovery</strong><small>Configure Wi-Fi
+                  without editing firmware, then find DESKEY automatically.</small></span><b>+</b>
+            </button>
+          </div>
+        </div>
+
+        <aside class="feature-panel" id="featurePanel">
+          <div class="panel-tag">FEATURE</div>
+          <div class="panel-icon">◎</div>
+          <h3 id="panelTitle">PC Context Engine</h3>
+          <p id="panelText">The Python agent monitors the Windows foreground application, keyboard activity, audio and
+            idle time, then sends the current context to the ESP32.</p>
+          <div class="panel-code" id="panelCode">python → /state → ESP32</div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section system-section" id="how">
+      <div class="section-kicker">04 / HOW IT WORKS</div>
+      <div class="section-heading">
+        <h2>Three layers. <em>One personality.</em></h2>
+        <p>The architecture keeps sensing, behavior and expression separate.</p>
+      </div>
+
+      <div class="architecture">
+        <div class="arch-card">
+          <span class="arch-num">01</span>
+          <div class="arch-icon">⌘</div>
+          <h3>Windows + Python</h3>
+          <p>Detects foreground process/window, keyboard activity, audio and Windows idle time.</p>
+          <div class="flow-code">detect()</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-card highlight">
+          <span class="arch-num">02</span>
+          <div class="arch-icon">◈</div>
+          <h3>ESP32 Brain</h3>
+          <p>Receives context, manages sleep/wake, heartbeat, modes and the current display state.</p>
+          <div class="flow-code">/state · /status</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-card">
+          <span class="arch-num">03</span>
+          <div class="arch-icon">◌</div>
+          <h3>OLED + RoboEyes</h3>
+          <p>Turns every state into an expressive face with blinking, movement, mood and micro-animation.</p>
+          <div class="flow-code">configureState()</div>
+        </div>
+      </div>
+
+      <div class="sleep-timeline">
+        <div class="timeline-label">INACTIVITY ENGINE</div>
+        <div class="timeline-track">
+          <div class="time-point"><span>0s</span><strong>ACTIVE</strong><small>Current PC action</small></div>
+          <div class="line"></div>
+          <div class="time-point"><span>30s</span><strong>SLEEPY</strong><small>Light sleep</small></div>
+          <div class="line"></div>
+          <div class="time-point"><span>2m</span><strong>SLEEPING</strong><small>Deeper rest</small></div>
+          <div class="line"></div>
+          <div class="time-point"><span>5m</span><strong>DEEP SLEEP</strong><small>Deep-sleep animation</small></div>
+        </div>
+        <p class="timeline-note">These are DESKEY's animation states. “Deep Sleep” is currently a visual state, not
+          ESP32 hardware deep sleep.</p>
+      </div>
+
+      <div class="wake-box">
+        <div>
+          <span class="small-label">WHEN YOU RETURN</span>
+          <h3>It doesn't restore an old action.</h3>
+        </div>
+        <div class="wake-flow"><span>🌙 Sleep</span><i>→</i><span>☀️ Wake</span><i>→</i><span>😄
+            Happy</span><i>→</i><span class="accent">CURRENT PC STATE</span></div>
+        <p>If you were listening to music, then opened VS Code while DESKEY was asleep, the next active state is
+          Coding—not the old Music state.</p>
+      </div>
+    </section>
+
+    <section class="section emotions">
+      <div class="section-kicker">05 / EXPRESSIONS</div>
+      <div class="section-heading">
+        <h2>A vocabulary of <em>eyes.</em></h2>
+        <p>PC contexts and personality states share one expressive visual language.</p>
+      </div>
+      <div class="emotion-cloud" id="emotionCloud"></div>
+    </section>
+
+    <section class="section connectivity">
+      <div class="section-kicker">06 / CONNECTIVITY</div>
+      <div class="connect-grid">
+        <div class="connect-copy">
+          <h2>Configure once.<br><em>Find it automatically.</em></h2>
+          <p>DESKEY can save Wi-Fi credentials in ESP32 flash. First-time setup can use a temporary DESKEY-SETUP access
+            point, and normal operation can advertise the device as <code>deskey.local</code>.</p>
+          <div class="mini-specs">
+            <div><span>Setup AP</span><strong>DESKEY-SETUP</strong></div>
+            <div><span>Local name</span><strong>deskey.local</strong></div>
+            <div><span>Discovery</span><strong>mDNS + UDP fallback</strong></div>
+          </div>
+        </div>
+        <div class="network-diagram">
+          <div class="node pc"><b>PC</b><small>Python Agent</small></div>
+          <div class="net-line"><span>LAN / Wi-Fi</span></div>
+          <div class="node esp"><b>DESKEY</b><small>ESP32</small></div>
+          <div class="net-line"><span>mDNS</span></div>
+          <div class="node name"><b>deskey.local</b><small>No IP typing</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section dashboard">
+      <div class="section-kicker">07 / LIVE MODEL</div>
+      <div class="dashboard-head">
+        <div>
+          <h2>A window into <em>DESKEY.</em></h2>
+          <p>The ESP32 dashboard exposes its current state, mode, Wi-Fi, heartbeat and PC idle information.</p>
+        </div>
+        <span class="live-badge"><i></i> SYSTEM MODEL</span>
+      </div>
+
+      <div class="dash-ui">
+        <div class="dash-top"><span>DESKEY</span><span>192.168.x.x</span><span class="green">● ONLINE</span></div>
+        <div class="dash-body">
+          <div class="dash-big"><small>CURRENT STATE</small><strong id="dashState">CODING</strong><span>Python connected
+              · External</span></div>
+          <div class="dash-metrics">
+            <div><small>PC IDLE</small><strong id="dashIdle">03s</strong></div>
+            <div><small>HEARTBEAT</small><strong id="dashHeart">0.8s</strong></div>
+            <div><small>WI-FI</small><strong>-48 dBm</strong></div>
+            <div><small>SLEEP</small><strong>INACTIVE</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section faq" id="faq">
+      <div class="section-kicker">08 / FAQ</div>
+      <div class="section-heading">
+        <h2>Questions, <em>answered.</em></h2>
+      </div>
+      <div class="faq-list">
+        <details open>
+          <summary>Does DESKEY need Python all the time?<span>+</span></summary>
+          <p>No. Python provides PC awareness, but the ESP32 can operate independently. If Python stops communicating
+            for 15 seconds, the ESP32 can switch to Autonomous Mode.</p>
+        </details>
+        <details>
+          <summary>What happens when I stop using my PC?<span>+</span></summary>
+          <p>The ESP32 uses the reported PC idle time: after 30 seconds it becomes Sleepy, after 2 minutes Sleeping, and
+            after 5 minutes it reaches the Deep Sleep animation.</p>
+        </details>
+        <details>
+          <summary>What happens when I start using the PC again?<span>+</span></summary>
+          <p>DESKEY performs its wake animation, shows Happy, and then applies the current PC state reported by Python.
+          </p>
+        </details>
+        <details>
+          <summary>If Spotify is playing and I open VS Code, which animation wins?<span>+</span></summary>
+          <p>VS Code wins because foreground application context has priority over background audio. DESKEY should show
+            Coding rather than Music.</p>
+        </details>
+        <details>
+          <summary>Is “Deep Sleep” actual ESP32 deep sleep?<span>+</span></summary>
+          <p>Not currently. It is a DESKEY visual state. The ESP32 remains running so networking, the dashboard and
+            heartbeat logic can continue.</p>
+        </details>
+        <details>
+          <summary>How often can autonomous emotions change?<span>+</span></summary>
+          <p>The current autonomous event interval is randomized between 12 and 30 seconds.</p>
+        </details>
+        <details>
+          <summary>Do I need to hard-code Wi-Fi credentials?</summary>
+          <p>No. With Wi-Fi provisioning, credentials can be entered through the setup portal and stored in ESP32 flash.
+          </p>
+        </details>
+        <details>
+          <summary>Do I need to enter the ESP32 IP every time I start Python?</summary>
+          <p>No. With mDNS and discovery, Python can try <code>deskey.local</code> and fall back to local UDP discovery.
+            A manual <code>--ip</code> option can remain available as a fallback.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section cta-section">
+      <div class="cta-card">
+        <div class="cta-orb"></div>
+        <span class="eyebrow">DESKEY / DESKTOP BUDDY</span>
+        <h2>Make your desk<br><em>feel alive.</em></h2>
+        <p>A small physical interface between you and the machine you spend your day with.</p>
+        <a class="btn primary" href="#top">Back to top ↑</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-brand">DESKEY</div>
+    <p>Desktop Buddy · ESP32 · OLED · Python · RoboEyes</p>
+    <span>Built for a more expressive desktop.</span>
+  </footer>
+
+  <button class="back-to-top" id="backToTop" aria-label="Back to top">↑</button>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
