@@ -1,0 +1,6 @@
+requests
+pycaw
+comtypes
+pynput
+psutil
+pywin32
