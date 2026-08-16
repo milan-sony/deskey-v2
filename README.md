@@ -456,18 +456,19 @@ CSS
 JavaScript
 ```
 
-# 📁 Suggested Project Structure
+# 📁 Project Structure
 
 ```text
 DESKEY/
 │
-├── firmware/
-│   └── DESKEY.ino
+├── deskey-firmware/
+│   └── deskey.ino
 │
-├── pc-agent/
-│   └── DESKEY_PC_Agent.py
+├── deskey-desktop-agent/
+│   └── deskey.py
+│   └── requirements.txt
 │
-├── website/
+├── deskey-website/
 │   ├── index.html
 │   ├── styles.css
 │   └── script.js
@@ -670,13 +671,9 @@ Current PC state
 
 # 📜 License
 
-Choose a license appropriate for the project, for example:
-
 ```text
 MIT License
 ```
-
-Add a corresponding `LICENSE` file if you publish the project publicly.
 
 # ❤️ Why DESKEY?
 
