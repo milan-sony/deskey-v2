@@ -34,23 +34,74 @@ setInterval(() => {
 animateFace(faceStates[0]);
 
 const featureData = {
-  context: ["PC Context Engine", "The Python agent monitors Windows foreground applications, keyboard activity, audio and idle time. Foreground context wins over background audio.", "python → /state → ESP32"],
-  sleep: ["Smart Sleep", "ESP32 inactivity logic transitions from Sleepy at 30 seconds to Sleeping at 2 minutes and the Deep Sleep animation at 5 minutes.", "idle_seconds → sleep engine"],
-  wake: ["Context-Aware Wake", "When PC activity returns, DESKEY performs its wake animation, shows Happy, and then applies the current PC state reported by Python.", "sleep → wake → happy → current"],
-  heartbeat: ["Python Heartbeat", "The ESP32 tracks the age of the last Python communication. After the 15-second heartbeat timeout, it can switch to Autonomous Mode.", "15s timeout → autonomous"],
-  auto: ["Autonomous Mode", "Without Python, DESKEY can continue independently and choose randomized personality events on a 12–30 second interval.", "random event: 12–30s"],
-  wifi: ["Wi-Fi Provisioning + Discovery", "Wi-Fi credentials can be configured without firmware edits. mDNS exposes deskey.local and UDP discovery provides a local-network fallback.", "DESKEY-SETUP → deskey.local"]
+  context: {
+    title: "PC Context Engine",
+    text: "The Python agent monitors the Windows foreground application, keyboard activity, audio and idle time, then sends the current PC context to DESKEY over Bluetooth Low Energy.",
+    code: "Python → BLE → ESP32"
+  },
+  sleep: {
+    title: "Smart Sleep",
+    text: "DESKEY uses the PC idle time reported by Python: 30 seconds becomes Sleepy, 2 minutes becomes Sleeping, and 5 minutes reaches the Deep Sleep animation.",
+    code: "idle → sleepy → sleeping → deep sleep"
+  },
+  wake: {
+    title: "Context-Aware Wake",
+    text: "When activity returns, DESKEY performs its wake animation and Happy reaction, then applies the current PC action reported by Python rather than restoring an old state.",
+    code: "wake → happy → current PC state"
+  },
+  heartbeat: {
+    title: "Python Heartbeat",
+    text: "BLE state packets also act as the application heartbeat. If Python stops communicating for the configured timeout, the ESP32 can enter Autonomous Mode.",
+    code: "BLE packet → heartbeat → ESP32"
+  },
+  auto: {
+    title: "Autonomous Mode",
+    text: "When Python is unavailable, DESKEY continues independently with randomized personality behavior instead of becoming completely inactive.",
+    code: "Python unavailable → autonomous"
+  },
+  ble: {
+    title: "Bluetooth LE Communication",
+    text: "Bluetooth Low Energy is the primary PC-to-ESP32 communication channel. Python performs fresh DESKEY discovery after disconnects and reconnects in the background without blocking PC activity detection.",
+    code: "Python → BLE → DESKEY"
+  },
+  wifi: {
+    title: "Optional Wi-Fi Dashboard",
+    text: "Wi-Fi is not required for DESKEY's core operation. When enabled, it provides access to the ESP32 web dashboard and optional network features.",
+    code: "Wi-Fi → optional dashboard"
+  }
 };
-document.querySelectorAll(".feature-item").forEach(item => {
-  item.addEventListener("click", () => {
-    document.querySelectorAll(".feature-item").forEach(x => x.classList.remove("active"));
-    item.classList.add("active");
-    const d = featureData[item.dataset.feature];
-    document.querySelector("#panelTitle").textContent = d[0];
-    document.querySelector("#panelText").textContent = d[1];
-    document.querySelector("#panelCode").textContent = d[2];
+
+function updateFeaturePanel(item) {
+  const key = item.dataset.feature;
+  const data = featureData[key];
+  if (!data) return;
+
+  const title = document.getElementById("panelTitle");
+  const text = document.getElementById("panelText");
+  const code = document.getElementById("panelCode");
+  const panel = document.getElementById("featurePanel");
+
+  if (title) title.textContent = data.title;
+  if (text) text.textContent = data.text;
+  if (code) code.textContent = data.code;
+
+  document.querySelectorAll(".feature-item").forEach(button => {
+    button.classList.toggle("active", button === item);
   });
+
+  if (panel) {
+    panel.classList.remove("panel-refresh");
+    void panel.offsetWidth;
+    panel.classList.add("panel-refresh");
+  }
+}
+
+document.querySelectorAll(".feature-item").forEach(item => {
+  item.addEventListener("click", () => updateFeaturePanel(item));
 });
+
+const activeFeature = document.querySelector(".feature-item.active") || document.querySelector(".feature-item");
+if (activeFeature) updateFeaturePanel(activeFeature);
 
 const emotions = ["RELAXED", "HAPPY", "SAD", "ANGRY", "SLEEPY", "THINKING", "CURIOUS", "EXCITED", "SURPRISED", "CONFUSED", "SCARED", "LAUGHING", "MUSIC", "TYPING", "CODING", "BROWSING", "IDLE", "GAMING", "ERROR", "WATCHING", "SLEEPING", "DEEP_SLEEP"];
 document.querySelector("#emotionCloud").innerHTML = emotions.map((x, i) => `<span style="--i:${i}">${x}</span>`).join("");

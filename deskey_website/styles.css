@@ -1195,3 +1195,295 @@ footer {
         display: none
     }
 }
+
+/* --- Styles moved from inline <style> blocks in index.html --- */
+
+/* Connectivity diagram */
+.connectivity-diagram {
+    width: 100%;
+    margin-top: 34px;
+    padding: 28px;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, .025);
+    overflow: hidden;
+}
+
+.diagram-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    font-size: 10px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted, #999);
+}
+
+.diagram-label span:last-child {
+    opacity: .55;
+}
+
+.ble-flow {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(120px, 160px) minmax(150px, 1fr);
+    align-items: center;
+    gap: 18px;
+}
+
+.diagram-node {
+    min-height: 104px;
+    padding: 20px;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, .11);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .035);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.diagram-node strong {
+    font-size: 15px;
+    letter-spacing: .03em;
+}
+
+.diagram-node small {
+    margin-top: 7px;
+    color: var(--muted, #999);
+    font-size: 11px;
+}
+
+.diagram-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+}
+
+.diagram-link .line {
+    width: 100%;
+    height: 1px;
+    background: rgba(255, 255, 255, .25);
+    position: relative;
+}
+
+.diagram-link .line::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    border-top: 1px solid currentColor;
+    border-right: 1px solid currentColor;
+    transform: translateY(-50%) rotate(45deg);
+}
+
+.diagram-link .link-label {
+    margin-bottom: 10px;
+    padding: 4px 9px;
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 999px;
+    font-size: 9px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted, #999);
+    white-space: nowrap;
+}
+
+.optional-dashboard {
+    margin-top: 26px;
+    padding-top: 24px;
+    border-top: 1px dashed rgba(255, 255, 255, .12);
+    display: grid;
+    grid-template-columns: 1fr minmax(120px, 160px) 1fr;
+    align-items: center;
+    gap: 18px;
+}
+
+.optional-dashboard .diagram-node {
+    min-height: 82px;
+}
+
+.diagram-footnote {
+    margin: 22px 0 0;
+    color: var(--muted, #999);
+    font-size: 12px;
+    line-height: 1.65;
+    text-align: center;
+}
+
+.network-diagram {
+    display: none !important;
+}
+
+@media (max-width:760px) {
+    .connectivity-diagram {
+        padding: 20px;
+    }
+
+    .ble-flow {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .diagram-link {
+        transform: rotate(90deg);
+        height: 70px;
+        justify-content: center;
+    }
+
+    .diagram-link .link-label {
+        transform: rotate(-90deg);
+        margin: 0;
+    }
+
+    .optional-dashboard {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .optional-dashboard .diagram-link {
+        transform: rotate(90deg);
+        height: 55px;
+    }
+
+    .diagram-label {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+    }
+}
+
+.mini-specs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.mini-specs>div {
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+@media (max-width:600px) {
+    .mini-specs {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Footer and helper styles moved from inline */
+footer.site-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 28px 24px;
+    border-top: 1px solid rgba(255, 255, 255, .06);
+    margin-top: 36px;
+    flex-wrap: wrap;
+    background: transparent;
+}
+
+footer.site-footer .footer-brand {
+    font-weight: 700;
+    color: #ffffff;
+    font-size: 1.02rem;
+    letter-spacing: .02em;
+}
+
+footer.site-footer p,
+footer.site-footer span {
+    margin: 0;
+    opacity: .92;
+}
+
+footer.site-footer .footer-credit {
+    margin-top: 0;
+    opacity: .92;
+}
+
+footer.site-footer .footer-credit a {
+    color: #a9ff68;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+@media (max-width:640px) {
+    footer.site-footer {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+}
+
+.footer-credit .heart {
+    color: #e25555;
+}
+
+/* Buddy note styles */
+.buddy-note {
+    padding-top: 20px;
+}
+
+.buddy-note-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 38px;
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, .025);
+    position: relative;
+    overflow: hidden;
+}
+
+.buddy-note-copy {
+    max-width: 760px;
+    margin-top: 10px;
+}
+
+.buddy-note-copy h2 {
+    margin: 0 0 18px;
+}
+
+.buddy-note-copy p {
+    max-width: 720px;
+    line-height: 1.75;
+}
+
+.buddy-dialogue {
+    margin: 22px 0;
+    padding: 18px 20px;
+    border-left: 2px solid currentColor;
+    background: rgba(255, 255, 255, .025);
+    border-radius: 0 12px 12px 0;
+}
+
+.buddy-dialogue strong {
+    letter-spacing: .02em;
+}
+
+@media (max-width: 600px) {
+    .buddy-note-inner {
+        padding: 26px 20px;
+    }
+}
+
+/* Header CTA helper to replace inline styles */
+.header-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .55rem;
+    flex-wrap: wrap;
+    white-space: nowrap;
+    max-width: 100%;
+    line-height: 1.2;
+}

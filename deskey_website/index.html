@@ -15,240 +15,6 @@
     rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 
-  <style>
-    /* DESKEY — clean responsive connectivity diagrams */
-    .connectivity-diagram {
-      width: 100%;
-      margin-top: 34px;
-      padding: 28px;
-      box-sizing: border-box;
-      border: 1px solid rgba(255, 255, 255, .10);
-      border-radius: 22px;
-      background: rgba(255, 255, 255, .025);
-      overflow: hidden;
-    }
-
-    .diagram-label {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 24px;
-      font-size: 10px;
-      letter-spacing: .16em;
-      text-transform: uppercase;
-      color: var(--muted, #999);
-    }
-
-    .diagram-label span:last-child {
-      opacity: .55;
-    }
-
-    .ble-flow {
-      display: grid;
-      grid-template-columns: minmax(150px, 1fr) minmax(120px, 160px) minmax(150px, 1fr);
-      align-items: center;
-      gap: 18px;
-    }
-
-    .diagram-node {
-      min-height: 104px;
-      padding: 20px;
-      box-sizing: border-box;
-      border: 1px solid rgba(255, 255, 255, .11);
-      border-radius: 16px;
-      background: rgba(255, 255, 255, .035);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-    }
-
-    .diagram-node strong {
-      font-size: 15px;
-      letter-spacing: .03em;
-    }
-
-    .diagram-node small {
-      margin-top: 7px;
-      color: var(--muted, #999);
-      font-size: 11px;
-    }
-
-    .diagram-link {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-width: 0;
-    }
-
-    .diagram-link .line {
-      width: 100%;
-      height: 1px;
-      background: rgba(255, 255, 255, .25);
-      position: relative;
-    }
-
-    .diagram-link .line::after {
-      content: "";
-      position: absolute;
-      right: 0;
-      top: 50%;
-      width: 7px;
-      height: 7px;
-      border-top: 1px solid currentColor;
-      border-right: 1px solid currentColor;
-      transform: translateY(-50%) rotate(45deg);
-    }
-
-    .diagram-link .link-label {
-      margin-bottom: 10px;
-      padding: 4px 9px;
-      border: 1px solid rgba(255, 255, 255, .10);
-      border-radius: 999px;
-      font-size: 9px;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--muted, #999);
-      white-space: nowrap;
-    }
-
-    .optional-dashboard {
-      margin-top: 26px;
-      padding-top: 24px;
-      border-top: 1px dashed rgba(255, 255, 255, .12);
-      display: grid;
-      grid-template-columns: 1fr minmax(120px, 160px) 1fr;
-      align-items: center;
-      gap: 18px;
-    }
-
-    .optional-dashboard .diagram-node {
-      min-height: 82px;
-    }
-
-    .diagram-footnote {
-      margin: 22px 0 0;
-      color: var(--muted, #999);
-      font-size: 12px;
-      line-height: 1.65;
-      text-align: center;
-    }
-
-    /* Hide the old uneven diagram while retaining its markup. */
-    .network-diagram {
-      display: none !important;
-    }
-
-    @media (max-width:760px) {
-      .connectivity-diagram {
-        padding: 20px;
-      }
-
-      .ble-flow {
-        grid-template-columns: 1fr;
-        gap: 10px;
-      }
-
-      .diagram-link {
-        transform: rotate(90deg);
-        height: 70px;
-        justify-content: center;
-      }
-
-      .diagram-link .link-label {
-        transform: rotate(-90deg);
-        margin: 0;
-      }
-
-      .optional-dashboard {
-        grid-template-columns: 1fr;
-        gap: 10px;
-      }
-
-      .optional-dashboard .diagram-link {
-        transform: rotate(90deg);
-        height: 55px;
-      }
-
-      .diagram-label {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 5px;
-      }
-    }
-
-    .mini-specs {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .mini-specs>div {
-      min-height: 58px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-
-    @media (max-width:600px) {
-      .mini-specs {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
-
-
-  <style>
-    .buddy-note {
-      padding-top: 20px;
-    }
-
-    .buddy-note-inner {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 38px;
-      border: 1px solid rgba(255, 255, 255, .10);
-      border-radius: 24px;
-      background: rgba(255, 255, 255, .025);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .buddy-note-copy {
-      max-width: 760px;
-      margin-top: 10px;
-    }
-
-    .buddy-note-copy h2 {
-      margin: 0 0 18px;
-    }
-
-    .buddy-note-copy p {
-      max-width: 720px;
-      line-height: 1.75;
-    }
-
-    .buddy-dialogue {
-      margin: 22px 0;
-      padding: 18px 20px;
-      border-left: 2px solid currentColor;
-      background: rgba(255, 255, 255, .025);
-      border-radius: 0 12px 12px 0;
-    }
-
-    .buddy-dialogue strong {
-      letter-spacing: .02em;
-    }
-
-    @media (max-width: 600px) {
-      .buddy-note-inner {
-        padding: 26px 20px;
-      }
-    }
-  </style>
-
 </head>
 
 <body>
@@ -267,9 +33,7 @@
       <a href="#faq">FAQ</a>
     </nav>
 
-    <a class="header-cta" href="https://github.com/milan-sony/deskey-v2"
-      style="display:inline-flex; align-items:center; justify-content:center; gap:.55rem; flex-wrap:wrap; white-space:nowrap; max-width:100%; line-height:1.2;"
-      aria-label="Explore DESKEY on GitHub">
+    <a class="header-cta" href="https://github.com/milan-sony/deskey-v2" aria-label="Explore DESKEY on GitHub">
       <svg class="github-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <path
           d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v 3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
@@ -728,94 +492,23 @@
     </section>
   </main>
 
-  <footer>
+  <footer class="site-footer">
     <div class="footer-brand">DESKEY</div>
-    <p>Desktop Buddy · ESP32 · OLED · Python · RoboEyes</p>
-    <span>Built for a more expressive desktop.</span>
+    <div>
+      <p>Desktop Buddy · ESP32 · OLED · Python · RoboEyes</p>
+      <span>Built for a more expressive desktop.</span>
+    </div>
+    <div class="footer-credit">
+      Made with <span class="heart" aria-hidden="true">❤</span> by <a href="https://github.com/milan-sony"
+        target="_blank" rel="noopener noreferrer">milan-sony</a>
+    </div>
   </footer>
 
   <button class="back-to-top" id="backToTop" aria-label="Back to top">↑</button>
 
   <script src="script.js"></script>
 
-  <script>
-    // DESKEY feature panel controller.
-    // Includes the BLE + optional Wi-Fi features and works independently
-    // of the original feature controller in script.js.
-    (() => {
-      const featureData = {
-        context: {
-          title: "PC Context Engine",
-          text: "The Python agent monitors the Windows foreground application, keyboard activity, audio and idle time, then sends the current PC context to DESKEY over Bluetooth Low Energy.",
-          code: "Python → BLE → ESP32"
-        },
-        sleep: {
-          title: "Smart Sleep",
-          text: "DESKEY uses the PC idle time reported by Python: 30 seconds becomes Sleepy, 2 minutes becomes Sleeping, and 5 minutes reaches the Deep Sleep animation.",
-          code: "idle → sleepy → sleeping → deep sleep"
-        },
-        wake: {
-          title: "Context-Aware Wake",
-          text: "When activity returns, DESKEY performs its wake animation and Happy reaction, then applies the current PC action reported by Python rather than restoring an old state.",
-          code: "wake → happy → current PC state"
-        },
-        heartbeat: {
-          title: "Python Heartbeat",
-          text: "BLE state packets also act as the application heartbeat. If Python stops communicating for the configured timeout, the ESP32 can enter Autonomous Mode.",
-          code: "BLE packet → heartbeat → ESP32"
-        },
-        auto: {
-          title: "Autonomous Mode",
-          text: "When Python is unavailable, DESKEY continues independently with randomized personality behavior instead of becoming completely inactive.",
-          code: "Python unavailable → autonomous"
-        },
-        ble: {
-          title: "Bluetooth LE Communication",
-          text: "Bluetooth Low Energy is the primary PC-to-ESP32 communication channel. Python performs fresh DESKEY discovery after disconnects and reconnects in the background without blocking PC activity detection.",
-          code: "Python → BLE → DESKEY"
-        },
-        wifi: {
-          title: "Optional Wi-Fi Dashboard",
-          text: "Wi-Fi is not required for DESKEY's core operation. When enabled, it provides access to the ESP32 web dashboard and optional network features.",
-          code: "Wi-Fi → optional dashboard"
-        }
-      };
 
-      function updateFeaturePanel(item) {
-        const key = item.dataset.feature;
-        const data = featureData[key];
-        if (!data) return;
-
-        const title = document.getElementById("panelTitle");
-        const text = document.getElementById("panelText");
-        const code = document.getElementById("panelCode");
-        const panel = document.getElementById("featurePanel");
-
-        if (title) title.textContent = data.title;
-        if (text) text.textContent = data.text;
-        if (code) code.textContent = data.code;
-
-        document.querySelectorAll(".feature-item").forEach(button => {
-          button.classList.toggle("active", button === item);
-        });
-
-        if (panel) {
-          panel.classList.remove("panel-refresh");
-          void panel.offsetWidth;
-          panel.classList.add("panel-refresh");
-        }
-      }
-
-      document.querySelectorAll(".feature-item").forEach(item => {
-        item.addEventListener("click", () => updateFeaturePanel(item));
-      });
-
-      // Make sure the first feature is populated on load.
-      const active = document.querySelector(".feature-item.active") ||
-        document.querySelector(".feature-item");
-      if (active) updateFeaturePanel(active);
-    })();
-  </script>
 </body>
 
 </html>
