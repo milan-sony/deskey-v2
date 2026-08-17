@@ -14,6 +14,241 @@
     href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+
+  <style>
+    /* DESKEY — clean responsive connectivity diagrams */
+    .connectivity-diagram {
+      width: 100%;
+      margin-top: 34px;
+      padding: 28px;
+      box-sizing: border-box;
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, .025);
+      overflow: hidden;
+    }
+
+    .diagram-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      font-size: 10px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--muted, #999);
+    }
+
+    .diagram-label span:last-child {
+      opacity: .55;
+    }
+
+    .ble-flow {
+      display: grid;
+      grid-template-columns: minmax(150px, 1fr) minmax(120px, 160px) minmax(150px, 1fr);
+      align-items: center;
+      gap: 18px;
+    }
+
+    .diagram-node {
+      min-height: 104px;
+      padding: 20px;
+      box-sizing: border-box;
+      border: 1px solid rgba(255, 255, 255, .11);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .035);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+
+    .diagram-node strong {
+      font-size: 15px;
+      letter-spacing: .03em;
+    }
+
+    .diagram-node small {
+      margin-top: 7px;
+      color: var(--muted, #999);
+      font-size: 11px;
+    }
+
+    .diagram-link {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .diagram-link .line {
+      width: 100%;
+      height: 1px;
+      background: rgba(255, 255, 255, .25);
+      position: relative;
+    }
+
+    .diagram-link .line::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border-top: 1px solid currentColor;
+      border-right: 1px solid currentColor;
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    .diagram-link .link-label {
+      margin-bottom: 10px;
+      padding: 4px 9px;
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: 999px;
+      font-size: 9px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted, #999);
+      white-space: nowrap;
+    }
+
+    .optional-dashboard {
+      margin-top: 26px;
+      padding-top: 24px;
+      border-top: 1px dashed rgba(255, 255, 255, .12);
+      display: grid;
+      grid-template-columns: 1fr minmax(120px, 160px) 1fr;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .optional-dashboard .diagram-node {
+      min-height: 82px;
+    }
+
+    .diagram-footnote {
+      margin: 22px 0 0;
+      color: var(--muted, #999);
+      font-size: 12px;
+      line-height: 1.65;
+      text-align: center;
+    }
+
+    /* Hide the old uneven diagram while retaining its markup. */
+    .network-diagram {
+      display: none !important;
+    }
+
+    @media (max-width:760px) {
+      .connectivity-diagram {
+        padding: 20px;
+      }
+
+      .ble-flow {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .diagram-link {
+        transform: rotate(90deg);
+        height: 70px;
+        justify-content: center;
+      }
+
+      .diagram-link .link-label {
+        transform: rotate(-90deg);
+        margin: 0;
+      }
+
+      .optional-dashboard {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .optional-dashboard .diagram-link {
+        transform: rotate(90deg);
+        height: 55px;
+      }
+
+      .diagram-label {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+      }
+    }
+
+    .mini-specs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mini-specs>div {
+      min-height: 58px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    @media (max-width:600px) {
+      .mini-specs {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+
+  <style>
+    .buddy-note {
+      padding-top: 20px;
+    }
+
+    .buddy-note-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 38px;
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .025);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .buddy-note-copy {
+      max-width: 760px;
+      margin-top: 10px;
+    }
+
+    .buddy-note-copy h2 {
+      margin: 0 0 18px;
+    }
+
+    .buddy-note-copy p {
+      max-width: 720px;
+      line-height: 1.75;
+    }
+
+    .buddy-dialogue {
+      margin: 22px 0;
+      padding: 18px 20px;
+      border-left: 2px solid currentColor;
+      background: rgba(255, 255, 255, .025);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .buddy-dialogue strong {
+      letter-spacing: .02em;
+    }
+
+    @media (max-width: 600px) {
+      .buddy-note-inner {
+        padding: 26px 20px;
+      }
+    }
+  </style>
+
 </head>
 
 <body>
@@ -116,9 +351,10 @@
             visible physical interaction.
           </p>
           <p>
-            Python determines the current PC context. The ESP32 turns that context
-            into an animation, manages inactivity and sleep, tracks the Python
-            heartbeat, and can fall back to autonomous behavior.
+            Python determines the current PC context and sends it to the ESP32 over
+            Bluetooth Low Energy. The ESP32 turns that context into an animation,
+            manages inactivity and sleep, tracks the Python heartbeat, and can fall
+            back to autonomous behavior.
           </p>
         </div>
       </div>
@@ -215,9 +451,14 @@
               <span class="num">05</span><span><strong>Autonomous Mode</strong><small>12–30 second randomized
                   personality events when Python is disconnected.</small></span><b>+</b>
             </button>
+            <button class="feature-item" data-feature="ble">
+              <span class="num">06</span><span><strong>Bluetooth LE Communication</strong><small>Python connects to
+                  DESKEY
+                  over BLE with fresh discovery and automatic background reconnection.</small></span><b>+</b>
+            </button>
             <button class="feature-item" data-feature="wifi">
-              <span class="num">06</span><span><strong>Wi-Fi Provisioning + Discovery</strong><small>Configure Wi-Fi
-                  without editing firmware, then find DESKEY automatically.</small></span><b>+</b>
+              <span class="num">07</span><span><strong>Optional Wi-Fi Dashboard</strong><small>Wi-Fi is optional and is
+                  used only for the ESP32 web dashboard.</small></span><b>+</b>
             </button>
           </div>
         </div>
@@ -245,16 +486,17 @@
           <span class="arch-num">01</span>
           <div class="arch-icon">⌘</div>
           <h3>Windows + Python</h3>
-          <p>Detects foreground process/window, keyboard activity, audio and Windows idle time.</p>
-          <div class="flow-code">detect()</div>
+          <p>Detects foreground process/window, keyboard activity, audio and Windows idle time, then sends the current
+            PC context over BLE.</p>
+          <div class="flow-code">detect() → BLE</div>
         </div>
         <div class="arch-arrow">→</div>
         <div class="arch-card highlight">
           <span class="arch-num">02</span>
           <div class="arch-icon">◈</div>
           <h3>ESP32 Brain</h3>
-          <p>Receives context, manages sleep/wake, heartbeat, modes and the current display state.</p>
-          <div class="flow-code">/state · /status</div>
+          <p>Receives BLE context, manages sleep/wake, heartbeat, modes and the current display state.</p>
+          <div class="flow-code">BLE · state · heartbeat</div>
         </div>
         <div class="arch-arrow">→</div>
         <div class="arch-card">
@@ -293,6 +535,29 @@
       </div>
     </section>
 
+    <section class="section buddy-note">
+      <div class="buddy-note-inner">
+        <div class="section-kicker">DESKEY HAS A PERSONALITY</div>
+        <div class="buddy-note-copy">
+          <h2>Warning: DESKEY is <em>extremely lazy.</em> 😂</h2>
+          <p>
+            If your PC sits quietly for too long, he'll take that as an invitation for a nap. 💤
+          </p>
+          <p class="buddy-dialogue">
+            No keyboard? No mouse? No activity?<br>
+            <strong>DESKEY:</strong> “Sounds like a perfect time for a nap.” 😴
+          </p>
+          <p>
+            Just move your mouse or press a key and he'll wake up like nothing happened:
+            <strong>“I wasn't sleeping. I was… conserving energy.”</strong> 👀
+          </p>
+          <p>
+            Then he'll check your current activity and get back to work.
+          </p>
+        </div>
+      </div>
+    </section>
+
     <section class="section emotions">
       <div class="section-kicker">05 / EXPRESSIONS</div>
       <div class="section-heading">
@@ -306,21 +571,66 @@
       <div class="section-kicker">06 / CONNECTIVITY</div>
       <div class="connect-grid">
         <div class="connect-copy">
-          <h2>Configure once.<br><em>Find it automatically.</em></h2>
-          <p>DESKEY can save Wi-Fi credentials in ESP32 flash. First-time setup can use a temporary DESKEY-SETUP access
-            point, and normal operation can advertise the device as <code>deskey.local</code>.</p>
+          <h2>Connect instantly.<br><em>Stay connected automatically.</em></h2>
+          <p>
+            DESKEY uses Bluetooth Low Energy as the primary connection between the
+            Windows Python agent and the ESP32. Python discovers DESKEY, connects
+            automatically, and keeps trying in the background if the BLE connection
+            drops or the ESP32 is restarted.
+          </p>
+
           <div class="mini-specs">
-            <div><span>Setup AP</span><strong>DESKEY-SETUP</strong></div>
-            <div><span>Local name</span><strong>deskey.local</strong></div>
-            <div><span>Discovery</span><strong>mDNS + UDP fallback</strong></div>
+            <div><span>Primary link</span><strong>Bluetooth LE</strong></div>
+            <div><span>Discovery</span><strong>Fresh BLE scan</strong></div>
+            <div><span>Reconnect</span><strong>Automatic</strong></div>
+            <div><span>Wi-Fi</span><strong>Optional dashboard</strong></div>
           </div>
         </div>
-        <div class="network-diagram">
-          <div class="node pc"><b>PC</b><small>Python Agent</small></div>
-          <div class="net-line"><span>LAN / Wi-Fi</span></div>
-          <div class="node esp"><b>DESKEY</b><small>ESP32</small></div>
-          <div class="net-line"><span>mDNS</span></div>
-          <div class="node name"><b>deskey.local</b><small>No IP typing</small></div>
+
+        <div class="connectivity-diagram">
+          <div class="diagram-label">
+            <span>CORE CONNECTION</span>
+            <span>BLE FIRST · NO IP REQUIRED</span>
+          </div>
+
+          <div class="ble-flow">
+            <div class="diagram-node">
+              <strong>WINDOWS PC</strong>
+              <small>Python Agent</small>
+            </div>
+
+            <div class="diagram-link">
+              <span class="link-label">Bluetooth LE</span>
+              <span class="line"></span>
+            </div>
+
+            <div class="diagram-node">
+              <strong>DESKEY</strong>
+              <small>ESP32 · OLED</small>
+            </div>
+          </div>
+
+          <div class="optional-dashboard">
+            <div class="diagram-node">
+              <strong>DESKEY</strong>
+              <small>ESP32 Web Server</small>
+            </div>
+
+            <div class="diagram-link">
+              <span class="link-label">Optional Wi-Fi</span>
+              <span class="line"></span>
+            </div>
+
+            <div class="diagram-node">
+              <strong>WEB DASHBOARD</strong>
+              <small>Local Network</small>
+            </div>
+          </div>
+
+          <p class="diagram-footnote">
+            BLE handles DESKEY's core PC communication. Wi-Fi is an optional
+            network layer for the web dashboard.
+          </p>
         </div>
       </div>
     </section>
@@ -330,20 +640,22 @@
       <div class="dashboard-head">
         <div>
           <h2>A window into <em>DESKEY.</em></h2>
-          <p>The ESP32 dashboard exposes its current state, mode, Wi-Fi, heartbeat and PC idle information.</p>
+          <p>The optional Wi-Fi dashboard provides a live view of DESKEY's current state, mode, heartbeat, PC idle time
+            and network status.</p>
         </div>
         <span class="live-badge"><i></i> SYSTEM MODEL</span>
       </div>
 
       <div class="dash-ui">
-        <div class="dash-top"><span>DESKEY</span><span>192.168.x.x</span><span class="green">● ONLINE</span></div>
+        <div class="dash-top"><span>DESKEY</span><span>BLE</span><span class="green">● ONLINE</span></div>
         <div class="dash-body">
           <div class="dash-big"><small>CURRENT STATE</small><strong id="dashState">CODING</strong><span>Python connected
               · External</span></div>
           <div class="dash-metrics">
             <div><small>PC IDLE</small><strong id="dashIdle">03s</strong></div>
             <div><small>HEARTBEAT</small><strong id="dashHeart">0.8s</strong></div>
-            <div><small>WI-FI</small><strong>-48 dBm</strong></div>
+            <div><small>BLE</small><strong>CONNECTED</strong></div>
+            <div><small>WI-FI</small><strong>OPTIONAL</strong></div>
             <div><small>SLEEP</small><strong>INACTIVE</strong></div>
           </div>
         </div>
@@ -356,7 +668,14 @@
         <h2>Questions, <em>answered.</em></h2>
       </div>
       <div class="faq-list">
-        <details open>
+        <details>
+          <summary>How does DESKEY work?<span>+</span></summary>
+          <p>DESKEY uses a Windows Python agent to understand your current PC activity, such as coding, browsing, typing
+            and music. The agent sends the current state to the ESP32 over Bluetooth Low Energy. The ESP32 turns that
+            state into an animated OLED expression, while also handling heartbeat, inactivity, sleep/wake and autonomous
+            behavior if Python becomes unavailable.</p>
+        </details>
+        <details>
           <summary>Does DESKEY need Python all the time?<span>+</span></summary>
           <p>No. Python provides PC awareness, but the ESP32 can operate independently. If Python stops communicating
             for 15 seconds, the ESP32 can switch to Autonomous Mode.</p>
@@ -386,14 +705,14 @@
           <p>The current autonomous event interval is randomized between 12 and 30 seconds.</p>
         </details>
         <details>
-          <summary>Do I need to hard-code Wi-Fi credentials?</summary>
-          <p>No. With Wi-Fi provisioning, credentials can be entered through the setup portal and stored in ESP32 flash.
-          </p>
+          <summary>What happens if the ESP32 is restarted?<span>+</span></summary>
+          <p>The Python BLE worker detects the lost connection, performs a fresh DESKEY discovery, reconnects
+            automatically, and sends the latest PC state.</p>
         </details>
         <details>
-          <summary>Do I need to enter the ESP32 IP every time I start Python?</summary>
-          <p>No. With mDNS and discovery, Python can try <code>deskey.local</code> and fall back to local UDP discovery.
-            A manual <code>--ip</code> option can remain available as a fallback.</p>
+          <summary>What happens if Bluetooth temporarily disconnects?<span>+</span></summary>
+          <p>PC activity detection continues while the BLE connection is retried in the background. When DESKEY is
+            available again, the latest PC state is sent automatically.</p>
         </details>
       </div>
     </section>
@@ -418,6 +737,85 @@
   <button class="back-to-top" id="backToTop" aria-label="Back to top">↑</button>
 
   <script src="script.js"></script>
+
+  <script>
+    // DESKEY feature panel controller.
+    // Includes the BLE + optional Wi-Fi features and works independently
+    // of the original feature controller in script.js.
+    (() => {
+      const featureData = {
+        context: {
+          title: "PC Context Engine",
+          text: "The Python agent monitors the Windows foreground application, keyboard activity, audio and idle time, then sends the current PC context to DESKEY over Bluetooth Low Energy.",
+          code: "Python → BLE → ESP32"
+        },
+        sleep: {
+          title: "Smart Sleep",
+          text: "DESKEY uses the PC idle time reported by Python: 30 seconds becomes Sleepy, 2 minutes becomes Sleeping, and 5 minutes reaches the Deep Sleep animation.",
+          code: "idle → sleepy → sleeping → deep sleep"
+        },
+        wake: {
+          title: "Context-Aware Wake",
+          text: "When activity returns, DESKEY performs its wake animation and Happy reaction, then applies the current PC action reported by Python rather than restoring an old state.",
+          code: "wake → happy → current PC state"
+        },
+        heartbeat: {
+          title: "Python Heartbeat",
+          text: "BLE state packets also act as the application heartbeat. If Python stops communicating for the configured timeout, the ESP32 can enter Autonomous Mode.",
+          code: "BLE packet → heartbeat → ESP32"
+        },
+        auto: {
+          title: "Autonomous Mode",
+          text: "When Python is unavailable, DESKEY continues independently with randomized personality behavior instead of becoming completely inactive.",
+          code: "Python unavailable → autonomous"
+        },
+        ble: {
+          title: "Bluetooth LE Communication",
+          text: "Bluetooth Low Energy is the primary PC-to-ESP32 communication channel. Python performs fresh DESKEY discovery after disconnects and reconnects in the background without blocking PC activity detection.",
+          code: "Python → BLE → DESKEY"
+        },
+        wifi: {
+          title: "Optional Wi-Fi Dashboard",
+          text: "Wi-Fi is not required for DESKEY's core operation. When enabled, it provides access to the ESP32 web dashboard and optional network features.",
+          code: "Wi-Fi → optional dashboard"
+        }
+      };
+
+      function updateFeaturePanel(item) {
+        const key = item.dataset.feature;
+        const data = featureData[key];
+        if (!data) return;
+
+        const title = document.getElementById("panelTitle");
+        const text = document.getElementById("panelText");
+        const code = document.getElementById("panelCode");
+        const panel = document.getElementById("featurePanel");
+
+        if (title) title.textContent = data.title;
+        if (text) text.textContent = data.text;
+        if (code) code.textContent = data.code;
+
+        document.querySelectorAll(".feature-item").forEach(button => {
+          button.classList.toggle("active", button === item);
+        });
+
+        if (panel) {
+          panel.classList.remove("panel-refresh");
+          void panel.offsetWidth;
+          panel.classList.add("panel-refresh");
+        }
+      }
+
+      document.querySelectorAll(".feature-item").forEach(item => {
+        item.addEventListener("click", () => updateFeaturePanel(item));
+      });
+
+      // Make sure the first feature is populated on load.
+      const active = document.querySelector(".feature-item.active") ||
+        document.querySelector(".feature-item");
+      if (active) updateFeaturePanel(active);
+    })();
+  </script>
 </body>
 
 </html>

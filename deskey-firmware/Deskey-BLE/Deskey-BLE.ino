@@ -1,15 +1,19 @@
 /*
 ============================================================
-DESKEY - Desktop Buddy
+DESKEY Desktop Buddy
 ============================================================
 
-ESP32 + SSD1306 OLED + FluxGarage RoboEyes
+ESP32 + SSD1306 OLED + FluxGarage RoboEyes + BLE
 
 CORE BEHAVIOUR
 ------------------------------------------------------------
 
-Python connected:
+Python connected over BLE:
     Python controls the current PC context.
+
+Wi-Fi:
+    Used only for the optional ESP32 web dashboard;
+    Python does not need to be on the same Wi-Fi network.
 
 Python disconnected:
     ESP32 switches to Autonomous Mode.
@@ -58,45 +62,26 @@ current PC context.
 
 #include <WiFi.h>
 #include <WebServer.h>
-#include <DNSServer.h>
-#include <Preferences.h>
-#include <ESPmDNS.h>
-#include <WiFiUdp.h>
 #include <Wire.h>
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
 #include <FluxGarage_RoboEyes.h>
-
-
-// Forward declaration: bootScreen is used by the Wi-Fi provisioning code
-// before its full implementation appears later in the sketch.
-void bootScreen(
-  const String& line1,
-  const String& line2 = "",
-  const String& line3 = "");
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
 
 
 // ============================================================
 // WIFI
 // ============================================================
 
+const char* WIFI_SSID = "MS";
+const char* WIFI_PASSWORD = "77777777";
+
 const unsigned long WIFI_TIMEOUT = 20000;
-
-// Wi-Fi provisioning
-const char* WIFI_SETUP_AP = "DESKEY-SETUP";
-const char* WIFI_SETUP_PASSWORD = "deskey123";
-const byte DNS_PORT = 53;
-
-Preferences wifiPreferences;
-DNSServer dnsServer;
-WiFiUDP discoveryUdp;
-const uint16_t DISCOVERY_PORT = 4210;
-const char* MDNS_HOSTNAME = "deskey";
-bool mdnsStarted = false;
-bool discoveryStarted = false;
-bool wifiSetupMode = false;
 
 
 // ============================================================
@@ -128,6 +113,28 @@ RoboEyes<Adafruit_SSD1306> roboEyes(display);
 // ============================================================
 
 WebServer server(80);
+
+
+// ============================================================
+// BLUETOOTH LOW ENERGY (BLE)
+// ============================================================
+
+// Python uses BLE for PC -> ESP32 communication.
+// Wi-Fi remains available for the optional web dashboard.
+
+#define DESKEY_BLE_DEVICE_NAME "DESKEY"
+#define DESKEY_BLE_SERVICE_UUID "7f2d0001-6b4a-4f43-9b9a-9f5b1c2e0001"
+#define DESKEY_BLE_STATE_UUID "7f2d0002-6b4a-4f43-9b9a-9f5b1c2e0001"
+
+BLEServer* bleServer = nullptr;
+BLECharacteristic* bleStateCharacteristic = nullptr;
+
+volatile bool bleConnected = false;
+volatile bool blePacketPending = false;
+
+int blePendingStateValue = 0;
+unsigned long blePendingIdleSeconds = 0;
+
 
 
 // ============================================================
@@ -943,6 +950,12 @@ void configureState() {
 
       roboEyes.setHeight(38, 38);
 
+      // Smooth left ↔ right movement is handled by
+      // updateMusicBounce().
+      //
+      // Do NOT use setHFlicker() here because it produces
+      // a shaking/flickering effect.
+
       roboEyes.setAutoblinker(
         ON,
         2,
@@ -1378,6 +1391,165 @@ void processPcActivity(
 
       enterSleepyMode();
     }
+  }
+}
+
+
+// ============================================================
+// BLE INPUT
+// ============================================================
+
+void queueBleState(const String& stateString, unsigned long idleSeconds) {
+
+  BuddyState reportedState;
+
+  if (!stringToState(stateString, reportedState)) {
+    Serial.print("[BLE] Invalid state: ");
+    Serial.println(stateString);
+    return;
+  }
+
+  // Queue the packet. The actual state transition is performed
+  // from loop() instead of the BLE callback task.
+  blePendingStateValue = (int)reportedState;
+  blePendingIdleSeconds = idleSeconds;
+  blePacketPending = true;
+}
+
+
+class DESKEYBLEServerCallbacks : public BLEServerCallbacks {
+
+  void onConnect(BLEServer* server) override {
+
+    bleConnected = true;
+
+    Serial.println("[BLE] Python connected.");
+  }
+
+
+  void onDisconnect(BLEServer* server) override {
+
+    bleConnected = false;
+
+    Serial.println("[BLE] Python disconnected.");
+
+    // Keep the normal 15-second heartbeat timeout as the source
+    // of truth. This avoids immediately entering autonomous mode
+    // during a short BLE reconnect.
+
+    BLEDevice::startAdvertising();
+  }
+};
+
+
+class DESKEYBLECharacteristicCallbacks : public BLECharacteristicCallbacks {
+
+  void onWrite(BLECharacteristic* characteristic) override {
+
+    String body = characteristic->getValue().c_str();
+
+    if (body.length() == 0) {
+      return;
+    }
+
+    String stateString = getJsonString(body, "state");
+
+    unsigned long idleSeconds = getJsonNumber(
+      body,
+      "idle_seconds",
+      0);
+
+    queueBleState(
+      stateString,
+      idleSeconds);
+
+    // Any valid packet is also the application heartbeat.
+    lastHeartbeat = millis();
+    pythonConnected = true;
+  }
+};
+
+
+void setupBLE() {
+
+  BLEDevice::init(
+    DESKEY_BLE_DEVICE_NAME);
+
+  bleServer = BLEDevice::createServer();
+
+  bleServer->setCallbacks(
+    new DESKEYBLEServerCallbacks());
+
+  BLEService* service = bleServer->createService(
+    DESKEY_BLE_SERVICE_UUID);
+
+  bleStateCharacteristic = service->createCharacteristic(
+    DESKEY_BLE_STATE_UUID,
+    BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
+
+  bleStateCharacteristic->setCallbacks(
+    new DESKEYBLECharacteristicCallbacks());
+
+  service->start();
+
+  BLEAdvertising* advertising =
+    BLEDevice::getAdvertising();
+
+  advertising->addServiceUUID(
+    DESKEY_BLE_SERVICE_UUID);
+
+  advertising->setScanResponse(true);
+  advertising->setMinPreferred(0x06);
+  advertising->setMinPreferred(0x12);
+
+  BLEDevice::startAdvertising();
+
+  Serial.println("[BLE] DESKEY advertising started.");
+  Serial.print("[BLE] Device name: ");
+  Serial.println(DESKEY_BLE_DEVICE_NAME);
+}
+
+
+void processBlePacket() {
+
+  if (!blePacketPending) {
+    return;
+  }
+
+  noInterrupts();
+
+  int stateValue = blePendingStateValue;
+  unsigned long idleSeconds = blePendingIdleSeconds;
+  blePacketPending = false;
+
+  interrupts();
+
+  BuddyState reportedState =
+    (BuddyState)stateValue;
+
+  // Always remember what Python says the PC is doing NOW.
+  lastPcState = reportedState;
+
+  // Process inactivity / wake first.
+  processPcActivity(
+    idleSeconds);
+
+  // Apply the CURRENT state after sleep/wake processing.
+  // This preserves the desired wake behavior:
+  // Sleep -> Wake -> Happy -> current PC state.
+  if (
+    !sleepSystemActive && idleSeconds < 5) {
+
+    controlMode = MODE_EXTERNAL;
+
+    changeState(
+      reportedState);
+
+    Serial.print(
+      "[BLE] Current PC action: ");
+
+    Serial.println(
+      stateToString(reportedState));
   }
 }
 
@@ -1895,450 +2067,13 @@ void handleStatus() {
 
 
 // ============================================================
-// WIFI PROVISIONING
-// ============================================================
-
-String getSavedWiFiSSID() {
-
-  wifiPreferences.begin("wifi", true);
-
-  String ssid =
-    wifiPreferences.getString("ssid", "");
-
-  wifiPreferences.end();
-
-  return ssid;
-}
-
-
-String getSavedWiFiPassword() {
-
-  wifiPreferences.begin("wifi", true);
-
-  String password =
-    wifiPreferences.getString("password", "");
-
-  wifiPreferences.end();
-
-  return password;
-}
-
-
-void saveWiFiCredentials(
-  const String& ssid,
-  const String& password) {
-
-  wifiPreferences.begin("wifi", false);
-
-  wifiPreferences.putString(
-    "ssid",
-    ssid);
-
-  wifiPreferences.putString(
-    "password",
-    password);
-
-  wifiPreferences.end();
-}
-
-
-void forgetWiFiCredentials() {
-
-  wifiPreferences.begin("wifi", false);
-
-  wifiPreferences.clear();
-
-  wifiPreferences.end();
-}
-
-
-String htmlEscape(
-  const String& value) {
-
-  String result = value;
-
-  result.replace("&", "&amp;");
-  result.replace("<", "&lt;");
-  result.replace(">", "&gt;");
-  result.replace("\"", "&quot;");
-  result.replace("'", "&#39;");
-
-  return result;
-}
-
-
-String buildWiFiSetupPage(
-  const String& message = "") {
-
-  int networkCount =
-    WiFi.scanNetworks();
-
-  String options =
-    "<option value=\"\">Select a Wi-Fi network</option>";
-
-  for (
-    int i = 0;
-    i < networkCount;
-    i++) {
-
-    String ssid =
-      WiFi.SSID(i);
-
-    if (ssid.length() == 0) {
-      continue;
-    }
-
-    options +=
-      "<option value=\"" + htmlEscape(ssid) + "\">" + htmlEscape(ssid) + " (" + String(WiFi.RSSI(i)) + " dBm)" + "</option>";
-  }
-
-  WiFi.scanDelete();
-
-  String page = R"rawliteral(
-<!doctype html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta charset="utf-8">
-<title>DESKEY Wi-Fi Setup</title>
-<style>
-:root{--bg:#09090b;--card:#111113;--card2:#18181b;--border:#27272a;--text:#fafafa;--muted:#a1a1aa;--accent:#8b5cf6}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{width:min(460px,calc(100% - 28px));margin:40px auto}.logo{width:56px;height:56px;border:1px solid var(--border);background:var(--card2);border-radius:16px;display:grid;place-items:center;font-size:28px;margin-bottom:18px}
-h1{font-size:25px;margin:0 0 6px}.sub{color:var(--muted);font-size:14px;margin-bottom:22px}.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:20px}
-label{display:block;font-size:12px;color:var(--muted);margin:0 0 7px}select,input{width:100%;padding:13px 14px;background:var(--card2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;outline:none;margin-bottom:16px}button{width:100%;padding:13px;border:0;border-radius:12px;background:var(--accent);color:white;font-size:15px;font-weight:600;cursor:pointer}.note{margin-top:15px;color:var(--muted);font-size:12px;line-height:1.5}.msg{padding:11px 12px;border:1px solid var(--border);background:var(--card2);border-radius:11px;margin-bottom:16px;font-size:13px}
-</style>
-</head>
-<body>
-<div class="wrap">
-<div class="logo">🤖</div>
-<h1>DESKEY Wi-Fi Setup</h1>
-<div class="sub">Connect DESKEY to your Wi-Fi network. Credentials are saved on the ESP32.</div>
-<div class="card">
-)rawliteral";
-
-  if (message.length() > 0) {
-
-    page +=
-      "<div class=\"msg\">" + htmlEscape(message) + "</div>";
-  }
-
-  page +=
-    "<form method=\"POST\" action=\"/wifi/save\">"
-    "<label>Wi-Fi Network</label>"
-    "<select name=\"ssid\" required>"
-    + options + "</select>"
-                "<label>Password</label>"
-                "<input name=\"password\" type=\"password\" placeholder=\"Wi-Fi password\" autocomplete=\"off\">"
-                "<button type=\"submit\">Save &amp; Connect</button>"
-                "</form>"
-                "<div class=\"note\">"
-                "Setup network: <b>"
-    + htmlEscape(String(WIFI_SETUP_AP)) + "</b><br>"
-                                          "Setup password: <b>"
-    + htmlEscape(String(WIFI_SETUP_PASSWORD)) + "</b>"
-                                                "</div>"
-                                                "</div></div></body></html>";
-
-  return page;
-}
-
-
-void handleWiFiSetupRoot() {
-
-  server.send(
-    200,
-    "text/html",
-    buildWiFiSetupPage());
-}
-
-
-void handleWiFiSave() {
-
-  String ssid =
-    server.arg("ssid");
-
-  String password =
-    server.arg("password");
-
-  ssid.trim();
-
-  if (ssid.length() == 0) {
-
-    server.send(
-      400,
-      "text/html",
-      buildWiFiSetupPage(
-        "Please select a Wi-Fi network."));
-
-    return;
-  }
-
-  bootScreen(
-    "WiFi",
-    "Connecting...",
-    ssid);
-
-  Serial.print(
-    "[WiFi] Trying network: ");
-
-  Serial.println(ssid);
-
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect(true);
-  delay(250);
-  WiFi.begin(
-    ssid.c_str(),
-    password.c_str());
-
-  unsigned long start =
-    millis();
-
-  while (
-    WiFi.status() != WL_CONNECTED && millis() - start < WIFI_TIMEOUT) {
-
-    delay(250);
-  }
-
-  if (
-    WiFi.status() == WL_CONNECTED) {
-
-    saveWiFiCredentials(
-      ssid,
-      password);
-
-    String ip =
-      WiFi.localIP().toString();
-
-    Serial.println(
-      "[WiFi] Connected.");
-
-    Serial.print(
-      "[WiFi] IP: ");
-
-    Serial.println(ip);
-
-    startNetworkDiscovery();
-
-    server.send(
-      200,
-      "text/html",
-      String(R"rawliteral(
-<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><title>DESKEY Connected</title><style>body{margin:0;background:#09090b;color:#fafafa;font-family:system-ui;text-align:center}.wrap{width:min(460px,calc(100% - 28px));margin:70px auto}.card{background:#111113;border:1px solid #27272a;border-radius:20px;padding:30px}h1{font-size:25px}p{color:#a1a1aa;line-height:1.6}.ip{display:inline-block;padding:12px 16px;background:#18181b;border:1px solid #27272a;border-radius:12px;font-weight:700}</style></head><body><div class="wrap"><div class="card"><div style="font-size:42px">✓</div><h1>DESKEY Connected</h1><p>Wi-Fi credentials were saved successfully.</p><p>IP address</p><div class="ip">)rawliteral")
-        + ip + R"rawliteral(</div><p>DESKEY will restart and connect automatically.</p></div></div></body></html>)rawliteral");
-
-    delay(1800);
-
-    ESP.restart();
-
-    return;
-  }
-
-  WiFi.disconnect(true);
-
-  Serial.println(
-    "[WiFi] Connection failed.");
-
-  server.send(
-    200,
-    "text/html",
-    buildWiFiSetupPage(
-      "Could not connect. Check the password and try again."));
-}
-
-
-void handleWiFiSetupNotFound() {
-
-  server.sendHeader(
-    "Location",
-    "/",
-    true);
-
-  server.send(
-    302,
-    "text/plain",
-    "");
-}
-
-
-bool startWiFiSetupPortal() {
-
-  wifiSetupMode = true;
-
-  WiFi.mode(WIFI_AP_STA);
-
-  bool apStarted =
-    WiFi.softAP(
-      WIFI_SETUP_AP,
-      WIFI_SETUP_PASSWORD);
-
-  if (!apStarted) {
-
-    Serial.println(
-      "[WiFi] Failed to start setup AP.");
-
-    return false;
-  }
-
-  IPAddress apIP =
-    WiFi.softAPIP();
-
-  dnsServer.start(
-    DNS_PORT,
-    "*",
-    apIP);
-
-  server.on(
-    "/",
-    HTTP_GET,
-    handleWiFiSetupRoot);
-
-  server.on(
-    "/wifi/save",
-    HTTP_POST,
-    handleWiFiSave);
-
-  server.onNotFound(
-    handleWiFiSetupNotFound);
-
-  server.enableCORS(true);
-  server.begin();
-
-  Serial.println(
-    "[WiFi] Setup AP started.");
-
-  Serial.print(
-    "[WiFi] Network: ");
-
-  Serial.println(
-    WIFI_SETUP_AP);
-
-  Serial.print(
-    "[WiFi] Password: ");
-
-  Serial.println(
-    WIFI_SETUP_PASSWORD);
-
-  Serial.print(
-    "[WiFi] Setup page: http://");
-
-  Serial.print(apIP);
-
-  Serial.println("/");
-
-  bootScreen(
-    "WiFi Setup",
-    "Connect to:",
-    WIFI_SETUP_AP);
-
-  return true;
-}
-
-
-bool connectToSavedWiFi() {
-
-  String ssid =
-    getSavedWiFiSSID();
-
-  String password =
-    getSavedWiFiPassword();
-
-  if (ssid.length() == 0) {
-
-    Serial.println(
-      "[WiFi] No saved credentials.");
-
-    return false;
-  }
-
-  Serial.print(
-    "[WiFi] Connecting to saved network: ");
-
-  Serial.println(ssid);
-
-  WiFi.mode(WIFI_STA);
-
-  WiFi.begin(
-    ssid.c_str(),
-    password.c_str());
-
-  unsigned long start =
-    millis();
-
-  while (
-    WiFi.status() != WL_CONNECTED && millis() - start < WIFI_TIMEOUT) {
-
-    delay(300);
-  }
-
-  return WiFi.status() == WL_CONNECTED;
-}
-
-
-void setupWiFi() {
-
-  bootScreen(
-    "WiFi",
-    "Connecting...");
-
-  if (connectToSavedWiFi()) {
-
-    wifiConnected = true;
-
-    String ip =
-      WiFi.localIP().toString();
-
-    Serial.print(
-      "[WiFi] Connected. IP: ");
-
-    Serial.println(ip);
-
-    bootScreen(
-      "WiFi Connected",
-      "IP Address:",
-      ip);
-
-    delay(2500);
-
-    startNetworkDiscovery();
-
-    return;
-  }
-
-  wifiConnected = false;
-
-  Serial.println(
-    "[WiFi] Saved network unavailable.");
-
-  if (!startWiFiSetupPortal()) {
-
-    bootScreen(
-      "WiFi Error",
-      "Restarting...");
-
-    delay(2000);
-    ESP.restart();
-  }
-
-  // Stay here until the user saves valid Wi-Fi.
-  while (wifiSetupMode) {
-
-    dnsServer.processNextRequest();
-    server.handleClient();
-
-    delay(2);
-  }
-}
-
-
-// ============================================================
 // BOOT SCREEN
 // ============================================================
 
 void bootScreen(
   const String& line1,
-  const String& line2,
-  const String& line3) {
+  const String& line2 = "",
+  const String& line3 = "") {
 
   display.clearDisplay();
 
@@ -2457,12 +2192,88 @@ void runBootSequence() {
   bootScreen(
     "Starting...");
 
+
   delay(1000);
 
-  setupWiFi();
+
+  bootScreen(
+    "WiFi",
+    "Connecting...");
+
+
+  WiFi.mode(
+    WIFI_STA);
+
+
+  WiFi.begin(
+    WIFI_SSID,
+    WIFI_PASSWORD);
+
+
+  unsigned long start =
+    millis();
+
+
+  while (
+    WiFi.status() != WL_CONNECTED &&
+
+    millis() - start < WIFI_TIMEOUT) {
+
+    delay(300);
+  }
+
+
+  if (
+    WiFi.status() == WL_CONNECTED) {
+
+    wifiConnected =
+      true;
+
+
+    String ip =
+      WiFi.localIP().toString();
+
+
+    Serial.print(
+      "[WiFi] IP: ");
+
+
+    Serial.println(
+      ip);
+
+
+    bootScreen(
+      "WiFi Connected",
+      "IP Address:",
+      ip);
+
+
+    delay(2500);
+  }
+
+  else {
+
+    wifiConnected =
+      false;
+
+
+    Serial.println(
+      "[WiFi] Connection failed.");
+
+
+    bootScreen(
+      "WiFi Failed",
+      "Autonomous Mode",
+      "Starting...");
+
+
+    delay(2500);
+  }
+
 
   bootScreen(
     "Starting Buddy...");
+
 
   delay(1200);
 }
@@ -3365,7 +3176,7 @@ Remembered context
 <div class="card stat">
 
 <div class="label">
-PYTHON
+PYTHON/BLUETOOTH
 </div>
 
 <div
@@ -4188,136 +3999,6 @@ setInterval(
 
 
 // ============================================================
-// NETWORK DISCOVERY
-// ============================================================
-
-void startNetworkDiscovery() {
-
-  if (WiFi.status() != WL_CONNECTED) {
-    return;
-  }
-
-  if (!mdnsStarted) {
-
-    if (MDNS.begin(MDNS_HOSTNAME)) {
-
-      MDNS.addService("http", "tcp", 80);
-      mdnsStarted = true;
-
-      Serial.println("[mDNS] DESKEY available at http://deskey.local");
-
-    } else {
-
-      Serial.println("[mDNS] Failed to start.");
-    }
-  }
-
-  if (!discoveryStarted) {
-
-    if (discoveryUdp.begin(DISCOVERY_PORT)) {
-      discoveryStarted = true;
-      Serial.print("[DISCOVERY] UDP port: ");
-      Serial.println(DISCOVERY_PORT);
-    } else {
-      Serial.println("[DISCOVERY] Failed to start UDP discovery.");
-    }
-  }
-}
-
-
-void handleNetworkDiscovery() {
-
-  if (!discoveryStarted || WiFi.status() != WL_CONNECTED) {
-    return;
-  }
-
-  int packetSize = discoveryUdp.parsePacket();
-
-  if (packetSize <= 0) {
-    return;
-  }
-
-  char buffer[64];
-  int length = discoveryUdp.read(buffer, sizeof(buffer) - 1);
-
-  if (length <= 0) {
-    return;
-  }
-
-  buffer[length] = '\0';
-
-  String request = String(buffer);
-  request.trim();
-
-  if (request == "DESKEY_DISCOVER") {
-
-    String response =
-      "DESKEY|" + WiFi.localIP().toString();
-
-    IPAddress senderIP = discoveryUdp.remoteIP();
-    uint16_t senderPort = discoveryUdp.remotePort();
-
-    discoveryUdp.beginPacket(
-      senderIP,
-      senderPort);
-
-    discoveryUdp.print(response);
-    discoveryUdp.endPacket();
-
-    Serial.print("[DISCOVERY] Responded to ");
-    Serial.println(discoveryUdp.remoteIP());
-  }
-}
-
-
-// ============================================================
-// WIFI MANAGEMENT FROM NORMAL DASHBOARD
-// ============================================================
-
-void handleWiFiChange() {
-
-  // Reuse the setup page while keeping the current ESP32 alive.
-  // The normal dashboard can link to this endpoint if desired.
-
-  wifiSetupMode = true;
-
-  WiFi.disconnect();
-  delay(250);
-
-  if (!startWiFiSetupPortal()) {
-
-    wifiSetupMode = false;
-
-    server.send(
-      500,
-      "text/plain",
-      "Could not start Wi-Fi setup mode.");
-
-    return;
-  }
-
-  // This endpoint cannot safely continue serving the old STA
-  // dashboard while the setup AP is active. The setup portal
-  // takes over until credentials are saved.
-}
-
-
-void handleWiFiForget() {
-
-  forgetWiFiCredentials();
-
-  server.send(
-    200,
-    "application/json",
-    "{\"status\":\"credentials_deleted\"}");
-
-  delay(500);
-
-  ESP.restart();
-}
-
-
-// ============================================================
 // ROOT
 // ============================================================
 
@@ -4349,7 +4030,7 @@ void setup() {
   Serial.println(
     "              DESKEY");
   Serial.println(
-    "        Desktop AI Buddy");
+    "        Desktop Buddy");
   Serial.println(
     "======================================");
 
@@ -4402,6 +4083,13 @@ void setup() {
 
 
   resetEyeSettings();
+
+
+  // ----------------------------------------------------------
+  // BLE
+  // ----------------------------------------------------------
+
+  setupBLE();
 
 
   // ----------------------------------------------------------
@@ -4460,12 +4148,6 @@ void setup() {
       handleWake);
 
 
-    server.on(
-      "/wifi/forget",
-      HTTP_POST,
-      handleWiFiForget);
-
-
     server.enableCORS(
       true);
 
@@ -4487,8 +4169,6 @@ void setup() {
 
     Serial.println(
       "/");
-
-    startNetworkDiscovery();
   }
 
 
@@ -4567,6 +4247,67 @@ void setup() {
 
 
 // ============================================================
+// MUSIC SMOOTH LEFT ↔ RIGHT
+// ============================================================
+//
+// RoboEyes' setPosition() transitions are animated smoothly by
+// the library. We therefore change the target position slowly
+// instead of using HFlicker(), which looks like shaking.
+//
+// Result:
+//
+//     LEFT  ─────────► RIGHT
+//     RIGHT ─────────► LEFT
+//
+// MUSIC_BOUNCE_INTERVAL
+// 1200–1500 → slower
+// 700–900 → natural
+// 400–600 → energetic
+
+const unsigned long MUSIC_BOUNCE_INTERVAL = 600;
+
+bool musicBounceRight = true;
+unsigned long lastMusicBounce = 0;
+
+
+void updateMusicBounce() {
+
+  if (currentState != STATE_MUSIC) {
+    return;
+  }
+
+
+  unsigned long now = millis();
+
+
+  if (
+    now - lastMusicBounce < MUSIC_BOUNCE_INTERVAL) {
+    return;
+  }
+
+
+  lastMusicBounce =
+    now;
+
+
+  if (musicBounceRight) {
+
+    roboEyes.setPosition(E);
+
+  }
+
+  else {
+
+    roboEyes.setPosition(W);
+  }
+
+
+  musicBounceRight =
+    !musicBounceRight;
+}
+
+
+// ============================================================
 // LOOP
 // ============================================================
 
@@ -4579,7 +4320,6 @@ void loop() {
   if (
     WiFi.status() == WL_CONNECTED) {
 
-    handleNetworkDiscovery();
     server.handleClient();
   }
 
@@ -4597,6 +4337,13 @@ void loop() {
 
     return;
   }
+
+
+  // ----------------------------------------------------------
+  // BLE packets from Python
+  // ----------------------------------------------------------
+
+  processBlePacket();
 
 
   // ----------------------------------------------------------
@@ -4642,6 +4389,13 @@ void loop() {
       }
     }
   }
+
+
+  // ----------------------------------------------------------
+  // Music smooth movement
+  // ----------------------------------------------------------
+
+  updateMusicBounce();
 
 
   // ----------------------------------------------------------

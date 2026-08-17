@@ -4,3 +4,4 @@ comtypes
 pynput
 psutil
 pywin32
+bleak

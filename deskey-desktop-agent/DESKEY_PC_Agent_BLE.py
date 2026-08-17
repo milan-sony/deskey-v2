@@ -1,6 +1,7 @@
+
 """
 ============================================================
-DESKTOP BUDDY - PC AWARENESS ENGINE
+DESKTOP BUDDY PC AWARENESS ENGINE
 ============================================================
 
 Detects:
@@ -23,21 +24,36 @@ Usage:
 
     python pc_agent.py
 
-Manual (optional IP override):
+Manual:
 
     python pc_agent.py --state coding
 ============================================================
 """
 
 import argparse
+import asyncio
 import ctypes
 import ctypes.wintypes
 import sys
-import socket
+
+# IMPORTANT:
+# Bleak's Windows/WinRT backend needs the asyncio thread to be MTA.
+# Some Windows/COM packages used by PC activity/audio detection can
+# initialize the thread as STA. Set this BEFORE importing packages
+# that may initialize COM.
+sys.coinit_flags = 0  # 0 = MTA
+
 import threading
 import time
 
-import requests
+from bleak import BleakClient, BleakScanner
+
+# Bleak provides this helper for undoing an unwanted STA initialization.
+# We use it defensively immediately before starting BLE.
+try:
+    from bleak.backends.winrt.util import uninitialize_sta
+except ImportError:
+    uninitialize_sta = None
 
 
 # ============================================================
@@ -51,13 +67,6 @@ TYPING_KPS_THRESHOLD = 3
 POLL_INTERVAL = 2.0
 
 ESP_TIMEOUT = 3
-
-# Automatic ESP32 discovery
-ESP32_HOSTNAME = "deskey.local"
-DISCOVERY_PORT = 4210
-DISCOVERY_MESSAGE = "DESKEY_DISCOVER"
-DISCOVERY_TIMEOUT = 1.5
-DISCOVERY_ATTEMPTS = 3
 
 
 # ============================================================
@@ -688,218 +697,415 @@ class ContextDetector:
 
 
 # ============================================================
-# ESP32 DISCOVERY
+# ESP32 BLE CLIENT
 # ============================================================
 
-def resolve_mdns_host():
+BLE_DEVICE_NAME = "DESKEY"
 
-    try:
-        ip = socket.gethostbyname(ESP32_HOSTNAME)
+BLE_SERVICE_UUID = "7f2d0001-6b4a-4f43-9b9a-9f5b1c2e0001"
+BLE_STATE_UUID = "7f2d0002-6b4a-4f43-9b9a-9f5b1c2e0001"
 
-        print(
-            f"[OK] Found DESKEY via mDNS: {ESP32_HOSTNAME} -> {ip}"
+BLE_SCAN_TIMEOUT = 5.0
+BLE_CONNECT_TIMEOUT = 5.0
+BLE_RETRY_DELAY = 2.0
+
+
+class ESP32BLEClient:
+    """
+    BLE transport for DESKEY.
+
+    Important design rule:
+    BLE reconnects are performed by a dedicated worker task.
+    The PC activity loop never waits for BLE discovery/connection.
+
+    Therefore a Windows/Bleak connection operation that becomes
+    slow or stuck cannot freeze activity detection.
+    """
+
+    def __init__(self, device_name=BLE_DEVICE_NAME):
+        self.device_name = device_name
+
+        self.device = None
+        self.client = None
+
+        self.connected = False
+        self.last_error = None
+
+        self._stop_event = asyncio.Event()
+        self._connection_event = asyncio.Event()
+        self._worker_task = None
+        self._delivery_task = None
+
+        # Latest state waiting to be delivered.
+        self._latest_state = None
+        self._state_lock = asyncio.Lock()
+
+        # Prevent multiple GATT writes at once.
+        self._write_lock = asyncio.Lock()
+
+
+    def is_connected(self):
+        return (
+            self.client is not None
+            and self.client.is_connected
         )
 
-        return ip
 
-    except socket.gaierror:
+    async def start(self):
+        self._stop_event.clear()
 
-        print(
-            f"[INFO] {ESP32_HOSTNAME} was not resolved."
-        )
-
-        return None
-
-
-def discover_esp32_udp():
-
-    message = DISCOVERY_MESSAGE.encode("utf-8")
-
-    for attempt in range(1, DISCOVERY_ATTEMPTS + 1):
-
-        sock = socket.socket(
-            socket.AF_INET,
-            socket.SOCK_DGRAM
-        )
-
-        try:
-
-            sock.setsockopt(
-                socket.SOL_SOCKET,
-                socket.SO_BROADCAST,
-                1
+        if self._worker_task is None:
+            self._worker_task = asyncio.create_task(
+                self._connection_worker()
             )
 
-            sock.settimeout(
-                DISCOVERY_TIMEOUT
+        if self._delivery_task is None:
+            self._delivery_task = asyncio.create_task(
+                self._deliver_latest_state_loop()
             )
 
-            sock.sendto(
-                message,
-                ("255.255.255.255", DISCOVERY_PORT)
-            )
 
-            deadline = (
-                time.time() +
-                DISCOVERY_TIMEOUT
-            )
+    async def stop(self):
+        self._stop_event.set()
 
-            while time.time() < deadline:
+        for task_name in ("_worker_task", "_delivery_task"):
+
+            task = getattr(self, task_name)
+
+            if task:
+
+                task.cancel()
 
                 try:
-                    data, address = sock.recvfrom(128)
+                    await task
+                except BaseException:
+                    pass
 
-                except socket.timeout:
-                    break
+                setattr(self, task_name, None)
 
-                response = (
-                    data.decode(
-                        "utf-8",
-                        errors="ignore"
-                    ).strip()
+        await self._disconnect()
+
+
+    async def _disconnect(self):
+        client = self.client
+
+        self.client = None
+        self.connected = False
+        self._connection_event.clear()
+
+        if client:
+            try:
+                await asyncio.wait_for(
+                    client.disconnect(),
+                    timeout=1.5
+                )
+            except Exception:
+                pass
+
+
+    async def _scan(self):
+        """
+        Always perform a fresh discovery when recovery is needed.
+
+        We deliberately do not rely on the old Windows BLE address.
+        """
+
+        print(
+            f"[BLE] Scanning for {self.device_name}..."
+        )
+
+        try:
+            devices = await asyncio.wait_for(
+                BleakScanner.discover(
+                    timeout=BLE_SCAN_TIMEOUT
+                ),
+                timeout=BLE_SCAN_TIMEOUT + 2.0
+            )
+        except Exception as error:
+            self.last_error = str(error)
+
+            print(
+                f"[BLE] Scan failed: {error}"
+            )
+
+            if "Thread is configured for Windows GUI" in str(error):
+                print(
+                    "[BLE] Windows COM apartment is STA. "
+                    "BLE needs MTA; restart this agent after "
+                    "the COM initialization fix."
                 )
 
-                if response.startswith("DESKEY|"):
-
-                    advertised_ip = (
-                        response.split("|", 1)[1].strip()
-                    )
-
-                    ip = advertised_ip or address[0]
-
-                    print(
-                        f"[OK] Found DESKEY via UDP discovery: {ip}"
-                    )
-
-                    return ip
-
-        except OSError as error:
-
-            print(
-                f"[WARN] UDP discovery attempt {attempt} failed: {error}"
-            )
-
-        finally:
-            sock.close()
-
-    return None
+            return None
 
 
-def discover_esp32():
+        for device in devices:
+            name = device.name or ""
 
-    print(
-        "[INFO] Searching for DESKEY automatically..."
-    )
+            local_name = ""
 
-    ip = resolve_mdns_host()
-
-    if ip:
-        return ip
-
-    return discover_esp32_udp()
-
-
-# ============================================================
-# ESP32 CLIENT
-# ============================================================
-
-class ESP32Client:
-
-    def __init__(
-        self,
-        ip
-    ):
-
-        self.ip = ip
-
-        self.base_url = (
-            f"http://{ip}"
-        )
-
-
-    def send_state(
-        self,
-        state,
-        idle_seconds=0
-    ):
-        url = (
-            f"{self.base_url}/state"
-        )
-
-        payload = {
-            "state": state,
-            "idle_seconds": round(
-                float(idle_seconds),
-                1
-            )
-        }
-
-        try:
-            response = requests.post(
-                url,
-                json=payload,
-                timeout=ESP_TIMEOUT
-            )
-
-            if (
-                response.status_code ==
-                200
-            ):
-                return True
-
-            print(
-                "[WARN] ESP32 returned:",
-                response.status_code
-            )
-
-            return False
-
-        except requests.exceptions.ConnectionError:
-            print(
-                "[ERROR] Cannot connect to ESP32"
-            )
-            return False
-
-        except requests.exceptions.Timeout:
-            print(
-                "[ERROR] ESP32 request timed out"
-            )
-            return False
-
-        except Exception as error:
-            print(
-                "[ERROR]",
-                error
-            )
-            return False
-
-
-    def status(self):
-
-        try:
-
-            response = requests.get(
-
-                f"{self.base_url}/status",
-
-                timeout=ESP_TIMEOUT
-            )
+            try:
+                local_name = (
+                    device.metadata.get("local_name")
+                    or ""
+                )
+            except Exception:
+                pass
 
 
             if (
-                response.status_code ==
-                200
+                name == self.device_name
+                or local_name == self.device_name
             ):
+                print(
+                    f"[BLE] Found {self.device_name}: "
+                    f"{device.address}"
+                )
 
-                return response.json()
+                return device
 
 
-        except Exception:
-
-            pass
-
+        print(
+            f"[BLE] {self.device_name} not found."
+        )
 
         return None
+
+
+    async def _connect_fresh(self):
+        """
+        Discover and connect to the current BLE device.
+
+        There is intentionally no 'try the old address first' path.
+        After an ESP32 restart, Windows can keep a stale BLE object
+        and the old connect call can block.
+        """
+
+        device = await self._scan()
+
+        if device is None:
+            return False
+
+
+        client = None
+
+        try:
+            print(
+                f"[BLE] Connecting to "
+                f"{device.address}..."
+            )
+
+            client = BleakClient(
+                device,
+                timeout=BLE_CONNECT_TIMEOUT
+            )
+
+            await asyncio.wait_for(
+                client.connect(),
+                timeout=BLE_CONNECT_TIMEOUT + 2.0
+            )
+
+            if not client.is_connected:
+                raise RuntimeError(
+                    "Bleak connect returned without "
+                    "an active connection."
+                )
+
+
+            self.device = device
+            self.client = client
+            self.connected = True
+            self.last_error = None
+
+            print(
+                "[BLE] Connected to DESKEY."
+            )
+
+            self._connection_event.set()
+
+            return True
+
+
+        except Exception as error:
+            self.last_error = str(error)
+
+            print(
+                f"[BLE] Fresh connection failed: {error}"
+            )
+
+            if client:
+                try:
+                    await asyncio.wait_for(
+                        client.disconnect(),
+                        timeout=1.0
+                    )
+                except Exception:
+                    pass
+
+            return False
+
+
+    async def _connection_worker(self):
+        """
+        Runs independently from the PC activity detector.
+
+        If DESKEY is restarted, this worker keeps scanning/reconnecting
+        while the main activity loop continues normally.
+        """
+
+        while not self._stop_event.is_set():
+
+            if not self.is_connected():
+
+                self.connected = False
+                self._connection_event.clear()
+
+                connected = await self._connect_fresh()
+
+                if not connected:
+                    try:
+                        await asyncio.wait_for(
+                            self._stop_event.wait(),
+                            timeout=BLE_RETRY_DELAY
+                        )
+                    except asyncio.TimeoutError:
+                        pass
+
+                    continue
+
+
+            # Connected. Wait until the connection disappears or
+            # the worker is stopped.
+            try:
+                while (
+                    not self._stop_event.is_set()
+                    and self.is_connected()
+                ):
+                    await asyncio.sleep(0.5)
+
+            except asyncio.CancelledError:
+                raise
+
+
+            if not self._stop_event.is_set():
+                print(
+                    "[BLE] Connection lost. "
+                    "Starting fresh discovery."
+                )
+
+                await self._disconnect()
+
+
+    async def send_state(self, state, idle_seconds=0):
+        """
+        Non-blocking from the activity detector's perspective.
+
+        If BLE is not connected, the state is stored as the latest
+        desired state and the reconnect worker will deliver it once
+        the connection is restored.
+        """
+
+        payload = (
+            '{"state":"'
+            + str(state)
+            + '","idle_seconds":'
+            + str(round(float(idle_seconds), 1))
+            + '}'
+        )
+
+
+        async with self._state_lock:
+            self._latest_state = payload
+
+
+        # Never wait for BLE discovery or GATT I/O here.
+        # The delivery worker will send this state as soon as BLE
+        # is connected. This keeps the PC activity loop responsive.
+        return self.is_connected()
+
+
+    async def _write_latest_state(self):
+        async with self._write_lock:
+
+            if not self.is_connected():
+                return False
+
+
+            async with self._state_lock:
+                payload = self._latest_state
+
+
+            if not payload:
+                return False
+
+
+            try:
+                await asyncio.wait_for(
+                    self.client.write_gatt_char(
+                        BLE_STATE_UUID,
+                        payload.encode("utf-8"),
+                        response=False
+                    ),
+                    timeout=4.0
+                )
+
+                return True
+
+
+            except Exception as error:
+                self.last_error = str(error)
+
+                print(
+                    f"[BLE] Write failed: {error}"
+                )
+
+                await self._disconnect()
+
+                return False
+
+
+    async def _deliver_latest_state_loop(self):
+        """
+        Sends the latest PC state after every successful reconnect.
+
+        This is important after an ESP32 restart: if the user is already
+        coding/browsing/music/etc., DESKEY immediately receives that
+        current state without waiting for a new activity transition.
+        """
+
+        last_payload = None
+
+        while not self._stop_event.is_set():
+
+            if self.is_connected():
+
+                async with self._state_lock:
+                    payload = self._latest_state
+
+
+                if payload and payload != last_payload:
+
+                    success = await self._write_latest_state()
+
+                    if success:
+                        last_payload = payload
+
+
+            try:
+                await asyncio.wait_for(
+                    self._stop_event.wait(),
+                    timeout=0.25
+                )
+            except asyncio.TimeoutError:
+                pass
+
+
+    async def run(self):
+        await self.start()
+
+        try:
+            await self._deliver_latest_state_loop()
+        finally:
+            await self.stop()
 
 
 # ============================================================
@@ -910,7 +1116,9 @@ def print_banner():
 
     print()
 
-    print("DESKEY - DESKTOP BUDDY - PC AWARENESS ENGINE")
+    print(
+        "DESKTOP BUDDY - PC AWARENESS ENGINE"
+    )
 
     print()
 
@@ -967,94 +1175,73 @@ STATE_ICONS = {
 # MAIN
 # ============================================================
 
-def main():
+async def main_async():
 
     parser = argparse.ArgumentParser(
-
         description=
-        "Desktop Buddy PC Awareness Agent"
+        "DESKEY PC Awareness Agent - Bluetooth BLE"
     )
 
-
     parser.add_argument(
-
-        "--ip",
-
-        default=None,
-
-        help=
-        "ESP32 IP address (optional; DESKEY is discovered automatically if omitted)"
-    )
-
-
-    parser.add_argument(
-
         "--state",
-
         default=None,
-
         choices=VALID_STATES,
-
-        help=
-        "Manually send a state"
+        help="Manually send a state"
     )
-
 
     parser.add_argument(
-
         "--interval",
-
         type=float,
-
         default=POLL_INTERVAL,
-
-        help=
-        "Detection interval"
+        help="Detection interval"
     )
 
+    parser.add_argument(
+        "--device",
+        default=BLE_DEVICE_NAME,
+        help="BLE device name (default: DESKEY)"
+    )
 
     args = parser.parse_args()
 
-
     print_banner()
 
-
-    # ------------------------------------------------------------
-    # ESP32 connection
-    # ------------------------------------------------------------
-
-    if args.ip:
-
-        esp_ip = args.ip
-
-        print(
-            f"[INFO] Using manually supplied ESP32 IP: {esp_ip}"
-        )
-
-    else:
-
-        esp_ip = discover_esp32()
-
-        if not esp_ip:
-
-            print()
-            print(
-                "[ERROR] Could not find DESKEY automatically."
-            )
-            print(
-                "[INFO] Make sure the PC and DESKEY are on the same Wi-Fi network."
-            )
-            print(
-                "[INFO] You can also specify the IP manually with --ip."
-            )
-            sys.exit(1)
-
     print(
-        f"ESP32: {esp_ip}"
+        f"BLE device: {args.device}"
     )
 
-    client = ESP32Client(
-        esp_ip
+    client = ESP32BLEClient(
+        args.device
+    )
+
+    # ========================================================
+    # PREPARE WINDOWS BLE / COM APARTMENT
+    #
+    # The PC agent also uses pycaw for audio detection. pycaw/comtypes
+    # can initialize COM as STA on Windows. Bleak's console/asyncio
+    # WinRT backend needs MTA unless a GUI message loop is integrated.
+    # See Bleak's Windows troubleshooting documentation.
+    # ========================================================
+
+    if uninitialize_sta is not None:
+        try:
+            uninitialize_sta()
+        except Exception:
+            pass
+
+
+    # ========================================================
+    # START BLE WORKERS
+    #
+    # The activity detector is never blocked by BLE discovery or
+    # connection attempts. The worker scans/reconnects in the
+    # background until DESKEY is available.
+    # ========================================================
+
+    await client.start()
+
+    print(
+        "[BLE] Background connection worker started."
     )
 
 
@@ -1068,122 +1255,74 @@ def main():
             f"Sending: {args.state}"
         )
 
+        # Give the background worker a short opportunity to connect.
+        deadline = time.monotonic() + 10.0
 
-        success = (
-            client.send_state(
-                args.state,
-                0
-            )
+        while (
+            not client.is_connected()
+            and time.monotonic() < deadline
+        ):
+            await asyncio.sleep(0.2)
+
+        success = await client.send_state(
+            args.state,
+            0
         )
 
-
         if success:
+            # Allow the delivery worker to perform the GATT write.
+            await asyncio.sleep(0.5)
+            print("[OK] State queued/sent")
+            await client.stop()
+            return 0
 
-            print(
-                "[OK] State sent"
-            )
-
-        else:
-
-            print(
-                "[ERROR] Failed"
-            )
-
-
-        return
+        print("[ERROR] DESKEY not connected.")
+        await client.stop()
+        return 1
 
 
     # ========================================================
     # AUTOMATIC MODE
     # ========================================================
 
-    detector = (
-        ContextDetector()
-    )
-
-
+    detector = ContextDetector()
     detector.start()
 
-
     print()
-
-    print(
-        "[OK] PC awareness started"
-    )
-
-    print(
-        "[INFO] Detecting:"
-    )
-
-    print(
-        "       • Audio"
-    )
-
-    print(
-        "       • Typing"
-    )
-
-    print(
-        "       • Idle"
-    )
-
-    print(
-        "       • Coding"
-    )
-
-    print(
-        "       • Gaming"
-    )
-
-    print(
-        "       • Browsing"
-    )
-
-    print(
-        "       • Video"
-    )
-
+    print("[OK] PC awareness started")
+    print("[OK] Bluetooth transport active")
+    print("[INFO] Detecting:")
+    print("       • Audio")
+    print("       • Typing")
+    print("       • Idle")
+    print("       • Coding")
+    print("       • Gaming")
+    print("       • Browsing")
+    print("       • Video")
     print()
-
-    print(
-        "Press Ctrl+C to stop."
-    )
-
+    print("Press Ctrl+C to stop.")
     print()
-
 
     last_state = None
-
     connection_errors = 0
 
-
     try:
+
         while True:
 
-            state = (
-                detector.detect()
-            )
+            state = detector.detect()
 
             # Get the actual current Windows input idle time.
-            idle_seconds = (
-                get_idle_seconds()
-            )
+            idle_seconds = get_idle_seconds()
 
-            # ------------------------------------------------
-            # Print only when the detected context changes.
-            # ------------------------------------------------
-
+            # Print only when context changes.
             if state != last_state:
 
-                timestamp = time.strftime(
-                    "%H:%M:%S"
-                )
+                timestamp = time.strftime("%H:%M:%S")
 
-                icon = (
-                    STATE_ICONS.get(
-                        state,
-                        "❓"
-                    )
+                icon = STATE_ICONS.get(
+                    state,
+                    "❓"
                 )
 
                 print(
@@ -1193,45 +1332,30 @@ def main():
                     f"(idle={idle_seconds:.1f}s)"
                 )
 
-            # ------------------------------------------------
             # IMPORTANT:
-            #
-            # Always send the current state and idle time.
-            #
-            # This is what allows the ESP32 to receive the
-            # CURRENT action after the user wakes the PC,
-            # instead of restoring an old action.
-            # ------------------------------------------------
-
-            success = (
-                client.send_state(
-                    state,
-                    idle_seconds
-                )
+            # Always send the CURRENT state and idle time.
+            # This preserves current-action wake behavior.
+            success = await client.send_state(
+                state,
+                idle_seconds
             )
 
             if success:
 
                 last_state = state
-
                 connection_errors = 0
 
             else:
 
                 connection_errors += 1
 
-                if (
-                    connection_errors >= 10
-                ):
+                print(
+                    f"[BLE] DESKEY unavailable "
+                    f"(attempt {connection_errors}). "
+                    "Background reconnect will keep scanning."
+                )
 
-                    print(
-                        "[ERROR] Too many "
-                        "connection failures."
-                    )
-
-                    sys.exit(1)
-
-            time.sleep(
+            await asyncio.sleep(
                 args.interval
             )
 
@@ -1239,10 +1363,21 @@ def main():
     except KeyboardInterrupt:
 
         print()
+        print("DESKEY Bluetooth agent stopped.")
 
-        print(
-            "Desktop Buddy agent stopped."
-        )
+    finally:
+
+        await client.stop()
+
+    return 0
+
+
+def main():
+    try:
+        return asyncio.run(main_async())
+    except KeyboardInterrupt:
+        print("\n[DESKEY] Stopped by user.")
+        return 0
 
 
 # ============================================================

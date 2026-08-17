@@ -15,13 +15,11 @@ DESKEY combines:
 - 🧠 **ESP32** - device brain and behavior engine
 - 👀 **OLED + RoboEyes** - expressive animated face
 - 🐍 **Python PC Agent** - Windows activity/context detection
-- 📡 **Wi-Fi** - PC ↔ ESP32 communication
+- 📶 **Bluetooth LE** - primary PC ↔ ESP32 communication
 - 💓 **Heartbeat** - detects Python connection status
 - 😴 **Sleep Engine** - reacts to PC inactivity
 - 🤖 **Autonomous Mode** - operates independently when Python disconnects
-- 🌐 **Web Dashboard** - monitor and control DESKEY
-- 📶 **Wi-Fi Provisioning** - configure Wi-Fi without editing firmware
-- 🔎 **mDNS + UDP Discovery** - find DESKEY without manually entering its IP
+- 🌐 **Optional Wi-Fi Dashboard** - web dashboard when Wi-Fi is enabled
 
 The goal is simple: **make the desktop feel a little more alive.**
 
@@ -40,7 +38,7 @@ Windows PC
 │ Audio                │
 │ PC Idle Time         │
 └──────────┬───────────┘
-           │ HTTP / Wi-Fi
+           │ Bluetooth LE
            ▼
 ┌──────────────────────┐
 │        ESP32         │
@@ -122,6 +120,20 @@ Normal Activity
 
 > **Note:** `DEEP_SLEEP` is currently a visual DESKEY state, not actual ESP32 hardware `esp_deep_sleep()`. The ESP32 remains active so networking, heartbeat, dashboard, and wake behavior continue working.
 
+## 😂 DESKEY has a personality
+
+> **Warning: DESKEY is extremely lazy. 😂** If your PC sits quietly for too long, he'll take that as an invitation for a nap. 💤
+
+No keyboard? No mouse? No activity?
+
+**DESKEY:** *"Sounds like a perfect time for a nap."* 😴
+
+Just move your mouse or press a key and he'll wake up like nothing happened:
+
+**"I wasn't sleeping. I was… conserving energy."** 👀
+
+Then he'll check your current activity and get back to work.
+
 # ☀️ Context-Aware Wake
 
 DESKEY does **not** restore an old PC state after waking.
@@ -137,9 +149,7 @@ DESKEY sleeps...
 You open VS Code.
 
 You move the mouse.
-
-        ↓
-
+      ↓
 🌙 Deep Sleep
       ↓
 ☀️ Wake
@@ -211,87 +221,27 @@ The current autonomous event interval is randomized between:
 12 – 30 seconds
 ```
 
-# 📡 Wi-Fi Provisioning
+# 📡 Optional Wi-Fi
 
-Wi-Fi credentials do not need to be hard-coded into the firmware.
+Wi-Fi is **not required for DESKEY's core functionality**.
 
-On first setup, DESKEY can create:
-
-```text
-DESKEY-SETUP
-```
-
-Connect to it from a phone/computer and configure your Wi-Fi.
+Bluetooth Low Energy handles the PC ↔ ESP32 communication. Wi-Fi is optional and is used for the ESP32 web dashboard.
 
 ```text
 DESKEY boots
      ↓
-No saved Wi-Fi
+BLE starts
      ↓
-DESKEY-SETUP
+Python discovers DESKEY
      ↓
-Open setup page
-     ↓
-Select Wi-Fi
-     ↓
-Enter password
-     ↓
-Save
-     ↓
-ESP32 reconnects
+Core DESKEY operation
+     │
+     └── Optional Wi-Fi
+             ↓
+       Web Dashboard
 ```
 
-Credentials are stored in ESP32 non-volatile storage.
-
-After setup:
-
-```text
-Power ON
-   ↓
-Load saved credentials
-   ↓
-Connect automatically
-   ↓
-DESKEY starts
-```
-
-# 🔎 Automatic Discovery
-
-You do not need to manually find the ESP32 IP every time.
-
-DESKEY supports:
-
-### mDNS
-
-The ESP32 can advertise:
-
-```text
-deskey.local
-```
-
-Python can then connect using the hostname instead of a changing DHCP address.
-
-There is also a UDP discovery fallback.
-
-```text
-Python starts
-      ↓
-Try deskey.local
-      ↓
-Found?
-   ↙      ↘
- YES      NO
-  ↓        ↓
-Connect   UDP discovery
-           ↓
-       Find DESKEY
-           ↓
-       Get IP address
-           ↓
-         Connect
-```
-
-A manual `--ip` option can remain available as a fallback.
+If Wi-Fi is configured, the ESP32 can provide its dashboard on the local network.
 
 # 🌐 Web Dashboard
 
@@ -312,13 +262,7 @@ It can expose:
 - Wi-Fi RSSI
 - Sleep Status
 
-When mDNS is available:
-
-```text
-http://deskey.local
-```
-
-can be used to open the dashboard.
+When Wi-Fi is enabled, the dashboard can be opened using the ESP32's local network address.
 
 # 👀 Expressions
 
@@ -366,9 +310,6 @@ The exact visual behavior is controlled by the RoboEyes configuration in the ESP
                          │
                          ▼
                   Start dashboard
-                         │
-                         ▼
-                  Start mDNS
                          │
                          ▼
                  Python starts
@@ -430,11 +371,10 @@ ESP32
 Adafruit GFX
 Adafruit SSD1306
 RoboEyes
-WiFi
+Bluetooth LE
 WebServer
 Preferences
-mDNS
-UDP Discovery
+
 ```
 
 ### PC Agent
@@ -456,27 +396,6 @@ CSS
 JavaScript
 ```
 
-# 📁 Project Structure
-
-```text
-DESKEY/
-│
-├── deskey-firmware/
-│   └── deskey.ino
-│
-├── deskey-desktop-agent/
-│   └── deskey.py
-│   └── requirements.txt
-│
-├── deskey-website/
-│   ├── index.html
-│   ├── styles.css
-│   └── script.js
-│
-├── README.md
-└── LICENSE
-```
-
 # 🚀 Getting Started
 
 ## 1. Flash the ESP32
@@ -485,49 +404,51 @@ Open the DESKEY firmware in Arduino IDE.
 
 Install/configure the ESP32 board package and required libraries, then upload the firmware.
 
-## 2. Configure Wi-Fi
-
-On first boot, connect to:
-
 ```text
-DESKEY-SETUP
+Arduino IDE
+│
+├── ESP32 board package 3.3.11
+│   ├── WiFi
+│   ├── WebServer
+│   ├── Preferences
+│   ├── BLE
+│   └── Wire
+│
+└── Libraries
+    ├── Adafruit GFX Library
+    ├── Adafruit SSD1306
+    └── RoboEyes
 ```
 
-Open the setup page and enter your Wi-Fi credentials.
+## 2. Start the Python Agent
 
-## 3. Find DESKEY
-
-Normally the Python agent can discover:
-
-```text
-deskey.local
-```
-
-automatically.
-
-If discovery isn't available on your network, use the ESP32 IP as a fallback.
-
-## 4. Start Python
-
-Normally:
+Run:
 
 ```bash
-python DESKEY_PC_Agent.py
+python DESKEY_PC_Agent_BLE.py
 ```
 
-Manual fallback:
+The agent discovers **DESKEY over Bluetooth Low Energy** and connects automatically.
 
-```bash
-python DESKEY_PC_Agent.py --ip 192.168.x.x
-```
+## 3. Use DESKEY
 
-## 5. Open the Dashboard
+Once connected, Python detects the current PC activity and sends the current context to the ESP32.
 
 ```text
-http://deskey.local
+PC activity
+    ↓
+Python Agent
+    ↓
+Bluetooth LE
+    ↓
+ESP32
+    ↓
+OLED animation
 ```
 
-or use the ESP32 IP address.
+## 4. Optional: Enable Wi-Fi Dashboard
+
+Wi-Fi can be configured if you want to use the ESP32 web dashboard. It is not required for PC awareness, BLE communication, animations, sleep/wake or autonomous behavior.
 
 # ⚙️ Main Configuration
 
@@ -563,7 +484,7 @@ These values can be adjusted to change DESKEY's personality.
 
 DESKEY is designed around local PC-to-device communication.
 
-The PC agent analyzes activity locally and communicates with the ESP32 over the local network.
+The PC agent analyzes activity locally and communicates with the ESP32 over Bluetooth Low Energy.
 
 The core project does not require a cloud service.
 
@@ -612,28 +533,18 @@ For example, a future AI model could replace the current activity classifier whi
 
 # 🐛 Troubleshooting
 
-### DESKEY doesn't connect to Wi-Fi
-
-Check:
-
-- Wi-Fi credentials
-- 2.4 GHz network availability
-- ESP32 Wi-Fi signal
-- Router/client isolation settings
-
-Use the `DESKEY-SETUP` portal to reconfigure credentials.
-
 ### Python can't find DESKEY
 
-Try:
+Check that:
 
-```bash
-python DESKEY_PC_Agent.py --ip <ESP32_IP>
-```
+- Bluetooth is enabled on Windows
+- DESKEY is powered on
+- DESKEY is advertising over BLE
+- The ESP32 is within Bluetooth range
 
-If this works, the problem is likely local-network discovery/mDNS.
+Python will retry discovery automatically after a lost connection.
 
-Make sure the PC and ESP32 are on the same LAN.
+Wi-Fi and an ESP32 IP address are not required for core DESKEY communication.
 
 ### DESKEY stays in Music
 
